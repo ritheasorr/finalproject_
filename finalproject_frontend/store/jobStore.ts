@@ -1,187 +1,188 @@
 'use client';
 
+import { apiClient } from '../lib/api';
 import { Job, Application } from '../types/job';
 
-// Mock data storage
-const JOBS_KEY = 'careerlaunch_jobs';
-const APPLICATIONS_KEY = 'careerlaunch_applications';
+// Backend API response types
+interface BackendJob {
+  _id: string;
+  title: string;
+  type: string;
+  company: string;
+  location?: string;
+  description?: string;
+  skills?: string[];
+  attachment?: {
+    originalName: string;
+    mimeType: string;
+    size: number;
+    url: string;
+  };
+  status: 'open' | 'closed';
+  recruiter: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
-// Initialize with mock data
-const mockJobs: Job[] = [
-  {
-    id: '1',
-    title: 'Junior Frontend Developer',
-    job_type: 'FULLTIME',
-    salary: '$25-30/hour',
-    description: 'We are looking for a passionate Junior Frontend Developer to join our growing team. You will work on building modern web applications using React and TypeScript.',
-    requirements: 'Knowledge of React, TypeScript, and CSS. Strong problem-solving skills. Good communication abilities.',
-    location: 'Remote',
-    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    title: 'Marketing Intern',
-    job_type: 'INTERNSHIP',
-    salary: '$18-22/hour',
-    description: 'Join our marketing team to learn about digital marketing, social media strategy, and content creation.',
-    requirements: 'Currently enrolled in Marketing, Communications, or related field. Familiarity with social media platforms. Creative mindset.',
-    location: 'New York, NY',
-    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    title: 'Data Analyst - Part Time',
-    job_type: 'PARTTIME',
-    salary: '$28-32/hour',
-    description: 'Seeking a part-time Data Analyst to help with data collection, analysis, and visualization projects.',
-    requirements: 'Proficiency in Python, SQL, and Excel. Experience with data visualization tools like Tableau or Power BI.',
-    location: 'San Francisco, CA',
-    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
+interface BackendApplication {
+  _id: string;
+  candidate: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string;
+    school?: string;
+  };
+  job: {
+    _id: string;
+    title: string;
+    company: string;
+    type: string;
+    location?: string;
+    status: string;
+  };
+  status: 'submitted' | 'reviewing' | 'interview' | 'rejected' | 'hired';
+  coverLetter?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
-const mockApplications: Application[] = [
-  {
-    id: 'app1',
-    job_id: '1',
-    candidate_name: 'Alex Martinez',
-    candidate_email: 'alex.martinez@email.com',
-    resume_url: '#',
-    cover_letter: 'I am excited to apply for the Junior Frontend Developer position. With my recent bootcamp graduation and passion for React development, I believe I would be a great fit for your team.',
-    ai_score: 87,
-    status: 'pending',
-    applied_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'app2',
-    job_id: '1',
-    candidate_name: 'Sarah Chen',
-    candidate_email: 'sarah.chen@email.com',
-    resume_url: '#',
-    cover_letter: 'As a Computer Science student with hands-on experience building React applications, I am eager to contribute to your team and continue learning.',
-    ai_score: 92,
-    status: 'pending',
-    applied_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'app3',
-    job_id: '1',
-    candidate_name: 'Michael Johnson',
-    candidate_email: 'mjohnson@email.com',
-    resume_url: '#',
-    cover_letter: 'I have been working on personal projects using React and TypeScript for the past year and would love the opportunity to work professionally in this field.',
-    ai_score: 78,
-    status: 'pending',
-    applied_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'app4',
-    job_id: '2',
-    candidate_name: 'Emily Rodriguez',
-    candidate_email: 'emily.r@email.com',
-    resume_url: '#',
-    cover_letter: 'As a Marketing major with experience managing social media for campus organizations, I am excited about this internship opportunity.',
-    ai_score: 85,
-    status: 'pending',
-    applied_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'app5',
-    job_id: '3',
-    candidate_name: 'David Kim',
-    candidate_email: 'david.kim@email.com',
-    resume_url: '#',
-    cover_letter: 'I have strong analytical skills and experience with Python and SQL from my Data Science courses. I am looking for part-time work that fits my schedule.',
-    ai_score: 88,
-    status: 'pending',
-    applied_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
+// Map backend job to frontend Job type
+function mapBackendJob(backendJob: BackendJob): Job {
+  return {
+    id: backendJob._id,
+    title: backendJob.title,
+    job_type: backendJob.type.toUpperCase() as 'FULLTIME' | 'PARTTIME' | 'INTERNSHIP',
+    salary: '', // Backend doesn't have salary field yet
+    description: backendJob.description || '',
+    requirements: backendJob.skills?.join(', ') || '',
+    location: backendJob.location || '',
+    created_at: backendJob.createdAt,
+  };
+}
 
-// Initialize localStorage with mock data if empty
-if (typeof window !== 'undefined') {
-  if (!localStorage.getItem(JOBS_KEY)) {
-    localStorage.setItem(JOBS_KEY, JSON.stringify(mockJobs));
-  }
-  if (!localStorage.getItem(APPLICATIONS_KEY)) {
-    localStorage.setItem(APPLICATIONS_KEY, JSON.stringify(mockApplications));
-  }
+// Map backend application to frontend Application type
+function mapBackendApplication(backendApp: BackendApplication): Application {
+  return {
+    id: backendApp._id,
+    job_id: backendApp.job._id,
+    candidate_name: `${backendApp.candidate.firstName} ${backendApp.candidate.lastName}`,
+    candidate_email: backendApp.candidate.email,
+    resume_url: '#', // Backend doesn't have resume URLs yet
+    cover_letter: backendApp.coverLetter || '',
+    ai_score: Math.floor(Math.random() * 35) + 60, // Mock AI score for now
+    status: backendApp.status === 'hired' ? 'accepted' : backendApp.status === 'rejected' ? 'rejected' : 'pending',
+    applied_at: backendApp.createdAt,
+  };
 }
 
 export const jobStore = {
   // Jobs
-  getAllJobs(): Job[] {
-    if (typeof window === 'undefined') return [];
-    const jobs = localStorage.getItem(JOBS_KEY);
-    return jobs ? JSON.parse(jobs) : [];
-  },
-
-  getJobById(id: string): Job | undefined {
-    const jobs = this.getAllJobs();
-    return jobs.find(job => job.id === id);
-  },
-
-  createJob(job: Omit<Job, 'id' | 'created_at'>): Job {
-    const jobs = this.getAllJobs();
-    const newJob: Job = {
-      ...job,
-      id: Date.now().toString(),
-      created_at: new Date().toISOString(),
-    };
-    jobs.push(newJob);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(JOBS_KEY, JSON.stringify(jobs));
+  async getAllJobs(): Promise<Job[]> {
+    try {
+      const response = await apiClient.get<{ jobs: BackendJob[] }>('/jobs');
+      return response.jobs.map(mapBackendJob);
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+      return [];
     }
-    return newJob;
   },
 
-  updateJob(id: string, updates: Partial<Job>): Job | undefined {
-    if (typeof window === 'undefined') return undefined;
-    const jobs = this.getAllJobs();
-    const index = jobs.findIndex(job => job.id === id);
-    if (index === -1) return undefined;
-    
-    jobs[index] = { ...jobs[index], ...updates };
-    localStorage.setItem(JOBS_KEY, JSON.stringify(jobs));
-    return jobs[index];
+  async getJobById(id: string): Promise<Job | undefined> {
+    try {
+      const response = await apiClient.get<{ job: BackendJob }>(`/jobs/${id}`);
+      return mapBackendJob(response.job);
+    } catch (error) {
+      console.error('Error fetching job:', error);
+      return undefined;
+    }
   },
 
-  deleteJob(id: string): boolean {
-    if (typeof window === 'undefined') return false;
-    const jobs = this.getAllJobs();
-    const filtered = jobs.filter(job => job.id !== id);
-    if (filtered.length === jobs.length) return false;
-    
-    localStorage.setItem(JOBS_KEY, JSON.stringify(filtered));
-    
-    // Also delete associated applications
-    const applications = this.getAllApplications();
-    const filteredApps = applications.filter(app => app.job_id !== id);
-    localStorage.setItem(APPLICATIONS_KEY, JSON.stringify(filteredApps));
-    
-    return true;
+  async createJob(jobData: {
+    title: string;
+    type: string;
+    company: string;
+    location?: string;
+    description?: string;
+    skills?: string[];
+    attachment?: File;
+  }): Promise<Job | undefined> {
+    try {
+      if (jobData.attachment) {
+        const formData = new FormData();
+        formData.append('title', jobData.title);
+        formData.append('type', jobData.type);
+        formData.append('company', jobData.company);
+        if (jobData.location) formData.append('location', jobData.location);
+        if (jobData.description) formData.append('description', jobData.description);
+        if (jobData.skills) formData.append('skills', jobData.skills.join(','));
+        formData.append('attachment', jobData.attachment);
+
+        const response = await apiClient.postFormData<{ job: BackendJob }>('/jobs', formData);
+        return mapBackendJob(response.job);
+      } else {
+        const response = await apiClient.post<{ job: BackendJob }>('/jobs', {
+          title: jobData.title,
+          type: jobData.type,
+          company: jobData.company,
+          location: jobData.location,
+          description: jobData.description,
+          skills: jobData.skills,
+        });
+        return mapBackendJob(response.job);
+      }
+    } catch (error) {
+      console.error('Error creating job:', error);
+      throw error;
+    }
+  },
+
+  async updateJob(id: string, updates: Partial<Job>): Promise<Job | undefined> {
+    // Note: Backend doesn't have update endpoint yet
+    // This would need to be implemented in the backend
+    console.warn('Job update not yet implemented in backend');
+    return undefined;
+  },
+
+  async deleteJob(id: string): Promise<boolean> {
+    // Note: Backend doesn't have delete endpoint yet
+    // This would need to be implemented in the backend
+    console.warn('Job delete not yet implemented in backend');
+    return false;
   },
 
   // Applications
-  getAllApplications(): Application[] {
-    if (typeof window === 'undefined') return [];
-    const apps = localStorage.getItem(APPLICATIONS_KEY);
-    return apps ? JSON.parse(apps) : [];
+  async getAllApplications(): Promise<Application[]> {
+    // This would need a backend endpoint to get all applications
+    // For now, returning empty array
+    console.warn('Get all applications not available');
+    return [];
   },
 
-  getApplicationsByJobId(jobId: string): Application[] {
-    const applications = this.getAllApplications();
-    return applications.filter(app => app.job_id === jobId);
+  async getApplicationsByJobId(jobId: string): Promise<Application[]> {
+    try {
+      // Recruiters will use /applications/received to get their applications
+      const response = await apiClient.get<{ applications: BackendApplication[] }>('/applications/received');
+      const allApps = response.applications.map(mapBackendApplication);
+      return allApps.filter(app => app.job_id === jobId);
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+      return [];
+    }
   },
 
-  updateApplicationStatus(id: string, status: 'accepted' | 'rejected'): Application | undefined {
-    if (typeof window === 'undefined') return undefined;
-    const applications = this.getAllApplications();
-    const index = applications.findIndex(app => app.id === id);
-    if (index === -1) return undefined;
-    
-    applications[index] = { ...applications[index], status };
-    localStorage.setItem(APPLICATIONS_KEY, JSON.stringify(applications));
-    return applications[index];
+  async updateApplicationStatus(id: string, status: 'accepted' | 'rejected'): Promise<Application | undefined> {
+    try {
+      const backendStatus = status === 'accepted' ? 'hired' : 'rejected';
+      const response = await apiClient.patch<{ application: BackendApplication }>(
+        `/applications/${id}/status`,
+        { status: backendStatus }
+      );
+      return mapBackendApplication(response.application);
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      throw error;
+    }
   },
 };

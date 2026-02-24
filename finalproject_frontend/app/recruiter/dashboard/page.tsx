@@ -7,10 +7,12 @@ import { Plus, Edit, Trash2, Users, MapPin, DollarSign, Clock, Briefcase } from 
 import { authStore } from '@/store/authStore';
 import { jobStore } from '@/store/jobStore';
 import { Job } from '@/types/job';
+import Navigation from '@/components/Navigation';
 
 export default function RecruiterDashboard() {
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [applicationCounts, setApplicationCounts] = useState<Record<string, number>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -24,13 +26,22 @@ export default function RecruiterDashboard() {
     loadJobs();
   }, [router]);
 
-  const loadJobs = () => {
-    const allJobs = jobStore.getAllJobs();
-    setJobs(allJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+  const loadJobs = async () => {
+    const allJobs = await jobStore.getAllJobs();
+    const sortedJobs = allJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    setJobs(sortedJobs);
+    
+    // Load application counts for all jobs
+    const counts: Record<string, number> = {};
+    for (const job of sortedJobs) {
+      const apps = await jobStore.getApplicationsByJobId(job.id);
+      counts[job.id] = apps.length;
+    }
+    setApplicationCounts(counts);
   };
 
-  const handleDelete = (id: string) => {
-    jobStore.deleteJob(id);
+  const handleDelete = async (id: string) => {
+    await jobStore.deleteJob(id);
     loadJobs();
     setDeleteConfirm(null);
   };
@@ -68,7 +79,7 @@ export default function RecruiterDashboard() {
   };
 
   const getApplicationCount = (jobId: string) => {
-    return jobStore.getApplicationsByJobId(jobId).length;
+    return applicationCounts[jobId] || 0;
   };
 
   if (!mounted) {
@@ -82,30 +93,22 @@ export default function RecruiterDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/recruiter" className="text-2xl font-bold text-[#043927]">
-              CareerLaunch
-            </Link>
-            <div className="flex items-center gap-4">
-              <Link
-                href="/recruiter/jobs/new"
-                className="bg-[#043927] text-white px-6 py-2 rounded-lg hover:bg-[#065a3a] transition flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Post New Job
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navigation variant="recruiter" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Title */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#043927] mb-2">Recruiter Dashboard</h1>
-          <p className="text-gray-600">Manage your job postings and review applications</p>
+        {/* Page Title with Post Job Button */}
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-[#043927] mb-2">Recruiter Dashboard</h1>
+            <p className="text-gray-600">Manage your job postings and review applications</p>
+          </div>
+          <Link
+            href="/recruiter/jobs/new"
+            className="bg-[#043927] text-white px-6 py-2 rounded-lg hover:bg-[#065a3a] transition flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Post New Job
+          </Link>
         </div>
 
         {/* Stats */}

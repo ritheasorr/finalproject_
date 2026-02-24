@@ -1,50 +1,46 @@
 'use client';
 
+import { apiClient } from '../lib/api';
 import { User, JobSeekerProfile, Resume } from '../types/user';
 
-const USERS_KEY = 'careerlaunch_users';
 const CURRENT_USER_KEY = 'careerlaunch_current_user';
-const JOBSEEKER_PROFILES_KEY = 'careerlaunch_jobseeker_profiles';
-const RESUMES_KEY = 'careerlaunch_resumes';
 
-// Initialize mock users
-const mockUsers: User[] = [
-  {
-    id: 'jobseeker1',
-    email: 'jobseeker@example.com',
-    full_name: 'Alex JobSeeker',
-    role: 'jobseeker',
+// Backend API response types
+interface AuthResponse {
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string;
+    school?: string;
+    role: 'candidate' | 'recruiter';
+  };
+  accessToken: string;
+  refreshToken: string;
+}
+
+interface UserResponse {
+  user: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    email: string;
+    role: 'candidate' | 'recruiter';
+    phoneNumber?: string;
+    school?: string;
+  };
+}
+
+// Map backend user to frontend User type
+function mapBackendUser(backendUser: AuthResponse['user']): User {
+  return {
+    id: backendUser.id,
+    email: backendUser.email,
+    full_name: `${backendUser.firstName} ${backendUser.lastName}`,
+    role: backendUser.role === 'candidate' ? 'jobseeker' : 'recruiter',
     created_at: new Date().toISOString(),
-  },
-  {
-    id: 'recruiter1',
-    email: 'recruiter@example.com',
-    full_name: 'Sarah Recruiter',
-    role: 'recruiter',
-    created_at: new Date().toISOString(),
-  },
-];
-
-const mockProfiles: JobSeekerProfile[] = [
-  {
-    userId: 'jobseeker1',
-    full_name: 'Alex JobSeeker',
-    education: 'Computer Science - State University, Expected 2026',
-    skills: 'React, JavaScript, TypeScript, Python, SQL',
-    location: 'San Francisco, CA',
-  },
-];
-
-if (typeof window !== 'undefined') {
-  if (!localStorage.getItem(USERS_KEY)) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(mockUsers));
-  }
-  if (!localStorage.getItem(JOBSEEKER_PROFILES_KEY)) {
-    localStorage.setItem(JOBSEEKER_PROFILES_KEY, JSON.stringify(mockProfiles));
-  }
-  if (!localStorage.getItem(RESUMES_KEY)) {
-    localStorage.setItem(RESUMES_KEY, JSON.stringify([]));
-  }
+  };
 }
 
 export const authStore = {
@@ -64,61 +60,100 @@ export const authStore = {
     }
   },
 
-  login(email: string, password: string): User | null {
-    const users = this.getAllUsers();
-    const user = users.find(u => u.email === email);
-    // In a real app, we'd verify password. For demo, any password works
-    if (user && password) {
+  async login(email: string, password: string): Promise<User> {
+    try {
+      const response = await apiClient.post<AuthResponse>('/auth/login', {
+        email,
+        password,
+      });
+
+      apiClient.setAuthTokens(response.accessToken, response.refreshToken);
+      const user = mapBackendUser(response.user);
       this.setCurrentUser(user);
       return user;
+    } catch (error) {
+      throw error;
     }
-    return null;
   },
 
-  signup(email: string, password: string, full_name: string, role: 'jobseeker' | 'recruiter'): User {
-    const users = this.getAllUsers();
-    const newUser: User = {
-      id: Date.now().toString(),
-      email,
-      full_name,
-      role,
-      created_at: new Date().toISOString(),
-    };
-    users.push(newUser);
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    
-    // Create jobseeker profile if jobseeker
-    if (role === 'jobseeker') {
-      const profiles = this.getAllJobSeekerProfiles();
-      profiles.push({
-        userId: newUser.id,
-        full_name,
-        education: '',
-        skills: '',
-        location: '',
+  async signup(
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    role: 'jobseeker' | 'recruiter',
+    phoneNumber?: string,
+    school?: string
+  ): Promise<User> {
+    try {
+      const response = await apiClient.post<AuthResponse>('/auth/register', {
+        email,
+        password,
+        firstName,
+        lastName,
+        role: role === 'jobseeker' ? 'candidate' : 'recruiter',
+        phoneNumber,
+        school,
       });
-      localStorage.setItem(JOBSEEKER_PROFILES_KEY, JSON.stringify(profiles));
+
+      apiClient.setAuthTokens(response.accessToken, response.refreshToken);
+      const user = mapBackendUser(response.user);
+      this.setCurrentUser(user);
+      return user;
+    } catch (error) {
+      throw error;
     }
-    
-    this.setCurrentUser(newUser);
-    return newUser;
   },
 
   logout() {
+    apiClient.clearAuth();
     this.setCurrentUser(null);
   },
 
-  // Users
-  getAllUsers(): User[] {
-    if (typeof window === 'undefined') return [];
-    const users = localStorage.getItem(USERS_KEY);
-    return users ? JSON.parse(users) : [];
+  async fetchCurrentUser(): Promise<User | null> {
+    try {
+      const response = await apiClient.get<UserResponse>('/users/me');
+      const user: User = {
+        id: response.user.id,
+        email: response.user.email,
+        full_name: `${response.user.firstName || ''} ${response.user.lastName || ''}`.trim() || response.user.email.split('@')[0],
+        role: response.user.role === 'candidate' ? 'jobseeker' : 'recruiter',
+        created_at: new Date().toISOString(),
+      };
+      this.setCurrentUser(user);
+      return user;
+    } catch {
+      return null;
+    }
   },
 
-  // Job Seeker Profiles
+  async updateUserProfile(updates: {
+    firstName?: string;
+    lastName?: string;
+    phoneNumber?: string;
+    school?: string;
+  }): Promise<User | null> {
+    try {
+      const response = await apiClient.patch<UserResponse>('/users/me', updates);
+      const user: User = {
+        id: response.user.id,
+        email: response.user.email,
+        full_name: `${response.user.firstName || ''} ${response.user.lastName || ''}`.trim() || response.user.email.split('@')[0],
+        role: response.user.role === 'candidate' ? 'jobseeker' : 'recruiter',
+        created_at: new Date().toISOString(),
+      };
+      this.setCurrentUser(user);
+      return user;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Note: Profile and Resume management will need backend endpoints
+  // For now, keeping localStorage fallback for these features
   getAllJobSeekerProfiles(): JobSeekerProfile[] {
     if (typeof window === 'undefined') return [];
-    const profiles = localStorage.getItem(JOBSEEKER_PROFILES_KEY);
+    const profiles = localStorage.getItem('careerlaunch_jobseeker_profiles');
     return profiles ? JSON.parse(profiles) : [];
   },
 
@@ -131,17 +166,30 @@ export const authStore = {
     if (typeof window === 'undefined') return undefined;
     const profiles = this.getAllJobSeekerProfiles();
     const index = profiles.findIndex(p => p.userId === userId);
-    if (index === -1) return undefined;
+    
+    if (index === -1) {
+      // Create new profile
+      const newProfile: JobSeekerProfile = {
+        userId,
+        full_name: updates.full_name || '',
+        education: updates.education || '',
+        skills: updates.skills || '',
+        location: updates.location || '',
+      };
+      profiles.push(newProfile);
+      localStorage.setItem('careerlaunch_jobseeker_profiles', JSON.stringify(profiles));
+      return newProfile;
+    }
     
     profiles[index] = { ...profiles[index], ...updates };
-    localStorage.setItem(JOBSEEKER_PROFILES_KEY, JSON.stringify(profiles));
+    localStorage.setItem('careerlaunch_jobseeker_profiles', JSON.stringify(profiles));
     return profiles[index];
   },
 
-  // Resumes
+  // Resumes (localStorage until backend endpoints are added)
   getAllResumes(): Resume[] {
     if (typeof window === 'undefined') return [];
-    const resumes = localStorage.getItem(RESUMES_KEY);
+    const resumes = localStorage.getItem('careerlaunch_resumes');
     return resumes ? JSON.parse(resumes) : [];
   },
 
@@ -166,7 +214,7 @@ export const authStore = {
     };
     resumes.push(newResume);
     if (typeof window !== 'undefined') {
-      localStorage.setItem(RESUMES_KEY, JSON.stringify(resumes));
+      localStorage.setItem('careerlaunch_resumes', JSON.stringify(resumes));
     }
     return newResume;
   },
@@ -177,7 +225,7 @@ export const authStore = {
     const filtered = resumes.filter(r => r.id !== id);
     if (filtered.length === resumes.length) return false;
     
-    localStorage.setItem(RESUMES_KEY, JSON.stringify(filtered));
+    localStorage.setItem('careerlaunch_resumes', JSON.stringify(filtered));
     return true;
   },
 };

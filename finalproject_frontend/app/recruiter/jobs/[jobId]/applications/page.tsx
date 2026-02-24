@@ -21,6 +21,10 @@ export default function ApplicationReviewPage() {
 
   useEffect(() => {
     setMounted(true);
+    loadData();
+  }, [jobId, router]);
+
+  const loadData = async () => {
     const currentUser = authStore.getCurrentUser();
     
     if (!currentUser || currentUser.role !== 'recruiter') {
@@ -29,28 +33,32 @@ export default function ApplicationReviewPage() {
     }
 
     if (jobId) {
-      const jobData = jobStore.getJobById(jobId);
+      const jobData = await jobStore.getJobById(jobId);
       if (jobData) {
         setJob(jobData);
-        loadApplications();
+        await loadApplications();
       } else {
         router.push('/recruiter/dashboard');
       }
     }
-  }, [jobId, router]);
+  };
 
-  const loadApplications = () => {
+  const loadApplications = async () => {
     if (jobId) {
-      const apps = jobStore.getApplicationsByJobId(jobId);
-      setApplications(apps.sort((a, b) => b.aiScore - a.aiScore));
+      const apps = await jobStore.getApplicationsByJobId(jobId);
+      setApplications(apps.sort((a, b) => (b.ai_score || 0) - (a.ai_score || 0)));
     }
   };
 
-  const handleStatusUpdate = (appId: string, status: 'accepted' | 'rejected') => {
-    jobStore.updateApplicationStatus(appId, status);
-    loadApplications();
-    setSelectedApp(null);
-    alert(`Application ${status === 'accepted' ? 'accepted' : 'rejected'} successfully!`);
+  const handleStatusUpdate = async (appId: string, status: 'accepted' | 'rejected') => {
+    try {
+      await jobStore.updateApplicationStatus(appId, status);
+      await loadApplications();
+      setSelectedApp(null);
+      alert(`Application ${status === 'accepted' ? 'accepted' : 'rejected'} successfully!`);
+    } catch (err: any) {
+      alert(err.message || 'Failed to update application status');
+    }
   };
 
   const getScoreColor = (score: number) => {
@@ -206,12 +214,12 @@ export default function ApplicationReviewPage() {
                   <div className="flex justify-between items-start gap4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-gray-900">{app.candidateName}</h3>
-                        <div className={`px-3 py-1 rounded-full ${getScoreBgColor(app.aiScore)}`}>
+                        <h3 className="text-lg font-bold text-gray-900">{app.candidate_name}</h3>
+                        <div className={`px-3 py-1 rounded-full ${getScoreBgColor(app.ai_score)}`}>
                           <div className="flex items-center gap-1">
-                            <TrendingUp className={`w-4 h-4 ${getScoreColor(app.aiScore)}`} />
-                            <span className={`text-sm font-semibold ${getScoreColor(app.aiScore)}`}>
-                              {app.aiScore}% {getScoreLabel(app.aiScore)}
+                            <TrendingUp className={`w-4 h-4 ${getScoreColor(app.ai_score)}`} />
+                            <span className={`text-sm font-semibold ${getScoreColor(app.ai_score)}`}>
+                              {app.ai_score}% {getScoreLabel(app.ai_score)}
                             </span>
                           </div>
                         </div>
@@ -227,11 +235,11 @@ export default function ApplicationReviewPage() {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
                         <Mail className="w-4 h-4" />
-                        {app.candidateEmail}
+                        {app.candidate_email}
                         <span className="mx-2">•</span>
-                        Applied {new Date(app.appliedAt).toLocaleDateString()}
+                        Applied {new Date(app.applied_at).toLocaleDateString()}
                       </div>
-                      <p className="text-gray-700 line-clamp-2">{app.coverLetter}</p>
+                      <p className="text-gray-700 line-clamp-2">{app.cover_letter}</p>
                     </div>
                     
                     <div className="flex gap-2">
@@ -276,8 +284,8 @@ export default function ApplicationReviewPage() {
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
               <div className="flex justify-between items-start gap-4">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{selectedApp.candidateName}</h2>
-                  <p className="text-gray-600">{selectedApp.candidateEmail}</p>
+                  <h2 className="text-2xl font-bold text-gray-900">{selectedApp.candidate_name}</h2>
+                  <p className="text-gray-600">{selectedApp.candidate_email}</p>
                 </div>
                 <button 
                   onClick={() => setSelectedApp(null)}
@@ -290,20 +298,20 @@ export default function ApplicationReviewPage() {
 
             <div className="p-6">
               {/* AI Score */}
-              <div className={`p-4 rounded-lg mb-6 ${getScoreBgColor(selectedApp.aiScore)}`}>
+              <div className={`p-4 rounded-lg mb-6 ${getScoreBgColor(selectedApp.ai_score)}`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-semibold text-gray-700 mb-1">AI Resume Score</div>
-                    <div className={`text-3xl font-bold ${getScoreColor(selectedApp.aiScore)}`}>
-                      {selectedApp.aiScore}%
+                    <div className={`text-3xl font-bold ${getScoreColor(selectedApp.ai_score)}`}>
+                      {selectedApp.ai_score}%
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`text-lg font-semibold ${getScoreColor(selectedApp.aiScore)}`}>
-                      {getScoreLabel(selectedApp.aiScore)}
+                    <div className={`text-lg font-semibold ${getScoreColor(selectedApp.ai_score)}`}>
+                      {getScoreLabel(selectedApp.ai_score)}
                     </div>
                     <div className="text-sm text-gray-600">
-                      Applied {new Date(selectedApp.appliedAt).toLocaleDateString()}
+                      Applied {new Date(selectedApp.applied_at).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
@@ -313,7 +321,7 @@ export default function ApplicationReviewPage() {
               <div className="mb-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-3">Cover Letter</h3>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-700 whitespace-pre-wrap">{selectedApp.coverLetter}</p>
+                  <p className="text-gray-700 whitespace-pre-wrap">{selectedApp.cover_letter}</p>
                 </div>
               </div>
 
@@ -321,7 +329,7 @@ export default function ApplicationReviewPage() {
               <div className="mb-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-3">Resume</h3>
                 <div className="text-gray-600 text-sm">
-                  Resume ID: {selectedApp.resumeUrl}
+                  Resume ID: {selectedApp.resume_url}
                 </div>
               </div>
 

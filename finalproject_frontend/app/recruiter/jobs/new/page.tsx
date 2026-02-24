@@ -11,8 +11,8 @@ import { JobType } from '@/types/job';
 export default function JobFormPage() {
   const router = useRouter();
   const params = useParams();
-  const jobId = params?.jobId as string | undefined;
-  const isEditing = !!jobId;
+  const job_id = params?.jobId as string | undefined;
+  const isEditing = !!job_id;
 
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
@@ -28,6 +28,10 @@ export default function JobFormPage() {
 
   useEffect(() => {
     setMounted(true);
+    loadData();
+  }, [router, job_id]);
+
+  const loadData = async () => {
     const currentUser = authStore.getCurrentUser();
     
     if (!currentUser || currentUser.role !== 'recruiter') {
@@ -35,8 +39,8 @@ export default function JobFormPage() {
       return;
     }
 
-    if (isEditing && jobId) {
-      const job = jobStore.getJobById(jobId);
+    if (isEditing && job_id) {
+      const job = await jobStore.getJobById(job_id);
       if (job) {
         setFormData({
           title: job.title,
@@ -50,7 +54,7 @@ export default function JobFormPage() {
         router.push('/recruiter/dashboard');
       }
     }
-  }, [isEditing, jobId, router]);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -73,20 +77,33 @@ export default function JobFormPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validate()) return;
 
-    if (isEditing && jobId) {
-      jobStore.updateJob(jobId, formData);
-      alert('Job updated successfully! ✅');
-    } else {
-      jobStore.createJob(formData);
-      alert('Job posted successfully! 🎉');
+    try {
+      if (isEditing && job_id) {
+        await jobStore.updateJob(job_id, formData);
+        alert('Job updated successfully! ✅');
+      } else {
+        // Map frontend job type format to backend format
+        const jobData = {
+          title: formData.title,
+          type: formData.job_type.toLowerCase(),
+          company: 'Your Company', // TODO: Get from user profile
+          location: formData.location,
+          description: formData.description,
+          skills: formData.requirements.split(',').map(s => s.trim()).filter(Boolean),
+        };
+        await jobStore.createJob(jobData);
+        alert('Job posted successfully! 🎉');
+      }
+      
+      router.push('/recruiter/dashboard');
+    } catch (err: any) {
+      alert(err.message || 'Failed to save job');
     }
-    
-    router.push('/recruiter/dashboard');
   };
 
   if (!mounted) {

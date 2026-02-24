@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, FileText, Briefcase, LogOut, Upload } from 'lucide-react';
+import { User, FileText, Briefcase, Upload } from 'lucide-react';
 import { authStore } from '@/store/authStore';
 import { applicationStore } from '@/store/applicationStore';
+import Navigation from '@/components/Navigation';
 
 export default function JobSeekerDashboard() {
   const router = useRouter();
@@ -26,24 +27,26 @@ export default function JobSeekerDashboard() {
     loadData(currentUser);
   }, [router]);
 
-  const normalizeEmail = (email: string | null | undefined): string => {
-    return (email ?? '').trim().toLowerCase();
-  };
-
-  const loadData = (userData: any) => {
+  const loadData = async (userData: any) => {
     if (!userData) return;
-    setProfile(authStore.getJobSeekerProfile(userData.id));
+    
+    // Get or create profile
+    let profile = authStore.getJobSeekerProfile(userData.id);
+    if (!profile) {
+      profile = authStore.updateJobSeekerProfile(userData.id, {
+        userId: userData.id,
+        full_name: userData.full_name,
+        education: '',
+        skills: '',
+        location: '',
+      });
+    }
+    setProfile(profile);
     setResumes(authStore.getResumesByUserId(userData.id));
-    const userEmail = normalizeEmail(userData.email);
-    const apps = applicationStore.getAllApplications().filter(app =>
-      normalizeEmail(app.candidate_email) === userEmail
-    );
+    
+    // Fetch applications from API
+    const apps = await applicationStore.getApplicationsByUserId(userData.id);
     setApplications(apps);
-  };
-
-  const handleLogout = () => {
-    authStore.logout();
-    router.push('/login');
   };
 
   if (!mounted || !user || !profile) {
@@ -64,30 +67,7 @@ export default function JobSeekerDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/jobseeker" className="text-2xl font-bold text-[#043927]">
-              CareerLaunch
-            </Link>
-            <div className="flex items-center gap-4">
-              <Link href="/jobseeker/jobs" className="text-gray-700 hover:text-[#043927] transition">
-                Browse Jobs
-              </Link>
-              <Link href="/jobseeker/profile" className="text-gray-700 hover:text-[#043927] transition">
-                My Profile
-              </Link>
-              <button 
-                onClick={handleLogout}
-                className="flex items-center gap-2 text-gray-700 hover:text-red-600 transition"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navigation variant="jobseeker" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome */}

@@ -14,7 +14,7 @@ export default function JobApplicationPage() {
   const jobId = params?.jobId as string;
   
   const [user, setUser] = useState(authStore.getCurrentUser());
-  const [job, setJob] = useState(jobStore.getJobById(jobId));
+  const [job, setJob] = useState<any>(null);
   const [profile, setProfile] = useState(user ? authStore.getJobSeekerProfile(user.id) : null);
   const [resumes, setResumes] = useState(user ? authStore.getResumesByUserId(user.id) : []);
   const [mounted, setMounted] = useState(false);
@@ -23,9 +23,14 @@ export default function JobApplicationPage() {
   const [coverLetter, setCoverLetter] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    loadData();
+  }, [router, jobId]);
+
+  const loadData = async () => {
     const currentUser = authStore.getCurrentUser();
     
     if (!currentUser || currentUser.role !== 'jobseeker') {
@@ -37,7 +42,7 @@ export default function JobApplicationPage() {
     setProfile(authStore.getJobSeekerProfile(currentUser.id));
     setResumes(authStore.getResumesByUserId(currentUser.id));
     
-    const jobData = jobStore.getJobById(jobId);
+    const jobData = await jobStore.getJobById(jobId);
     if (!jobData) {
       router.push('/jobseeker/jobs');
       return;
@@ -45,12 +50,14 @@ export default function JobApplicationPage() {
     setJob(jobData);
     
     // Check if already applied
-    if (applicationStore.hasApplied(currentUser.id, jobId)) {
+    const applied = await applicationStore.hasApplied(currentUser.id, jobId);
+    setHasApplied(applied);
+    if (applied) {
       setError('You have already applied to this job');
     }
-  }, [router, jobId]);
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
@@ -66,27 +73,34 @@ export default function JobApplicationPage() {
       return;
     }
     
-    if (applicationStore.hasApplied(user.id, jobId)) {
+    // Double-check if already applied
+    const applied = await applicationStore.hasApplied(user.id, jobId);
+    if (applied) {
       setError('You have already applied to this job');
       return;
     }
 
     setIsSubmitting(true);
     
-    // Create application
-    const resumeToUse = selectedResumeId || 'no-resume';
-    applicationStore.createApplication(
-      jobId,
-      user.id,
-      profile.full_name,
-      user.email,
-      resumeToUse,
-      coverLetter
-    );
-    
-    // Redirect to success or applications page
-    alert('Application submitted successfully! 🎉');
-    router.push('/jobseeker/dashboard');
+    try {
+      // Create application
+      const resumeToUse = selectedResumeId || 'no-resume';
+      await applicationStore.createApplication(
+        jobId,
+        user.id,
+        profile.full_name,
+        user.email,
+        resumeToUse,
+        coverLetter
+      );
+      
+      // Redirect to success or applications page
+      alert('Application submitted successfully! 🎉');
+      router.push('/jobseeker/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit application');
+      setIsSubmitting(false);
+    }
   };
 
   if (!mounted || !user || !job) {
@@ -96,8 +110,6 @@ export default function JobApplicationPage() {
       </div>
     );
   }
-
-  const hasApplied = applicationStore.hasApplied(user.id, jobId);
 
   return (
     <div className="min-h-screen bg-gray-50">

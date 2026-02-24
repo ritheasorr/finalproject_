@@ -1,40 +1,25 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, Briefcase, Clock, Shield, TrendingUp } from 'lucide-react';
+import { authStore } from '@/store/authStore';
+import Navigation from '@/components/Navigation';
 
 export default function JobSeekerPage() {
   const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const user = authStore.getCurrentUser();
+    setIsLoggedIn(!!user);
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="text-2xl font-bold text-[#043927]">CareerLaunch</Link>
-            <div className="flex items-center gap-6">
-              <Link href="/jobseeker/dashboard" className="text-gray-700 hover:text-[#043927] transition">
-                Dashboard
-              </Link>
-              <Link href="/jobseeker/jobs" className="text-gray-700 hover:text-[#043927] transition">
-                Find Jobs
-              </Link>
-              <Link href="/login" className="text-gray-700 hover:text-[#043927] transition">
-                Sign In
-              </Link>
-              <Link 
-                href="/signup"
-                className="bg-[#043927] text-white px-6 py-2 rounded-lg hover:bg-[#065a3a] transition"
-              >
-                Get Started
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation variant="jobseeker" />
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-[#043927] to-[#065a3a] text-white py-20">
@@ -57,12 +42,14 @@ export default function JobSeekerPage() {
                 Find Jobs
                 <ArrowRight className="w-5 h-5" />
               </Link>
-              <Link 
-                href="/login"
-                className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white/10 transition"
-              >
-                Sign In
-              </Link>
+              {!isLoggedIn && (
+                <Link 
+                  href="/login"
+                  className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white/10 transition"
+                >
+                  Sign In
+                </Link>
+              )}
             </div>
           </div>
         </div>

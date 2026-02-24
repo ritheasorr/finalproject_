@@ -8,7 +8,8 @@ import { authStore } from '@/store/authStore';
 export default function SignupPage() {
   const router = useRouter();
   const [userType, setUserType] = useState<'jobseeker' | 'recruiter'>('jobseeker');
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -17,7 +18,7 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -37,16 +38,16 @@ export default function SignupPage() {
     }
 
     try {
-      const user = authStore.signup(email, password, fullName, userType);
+      const user = await authStore.signup(email, password, firstName.trim(), lastName.trim(), userType);
       
       // Redirect based on role
       if (user.role === 'jobseeker') {
-        router.push('/jobseeker');
+        window.location.href = '/jobseeker/dashboard';
       } else {
-        router.push('/recruiter');
+        window.location.href = '/recruiter/dashboard';
       }
-    } catch (err) {
-      setError('An account with this email already exists');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during signup');
     }
   };
 
@@ -97,14 +98,27 @@ export default function SignupPage() {
               </div>
             )}
 
-            {/* Full Name */}
+            {/* First Name */}
             <div>
-              <label className="block text-sm text-[#364153] mb-2">Full Name</label>
+              <label className="block text-sm text-[#364153] mb-2">First Name</label>
               <input
                 type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="John Doe"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="John"
+                className="w-full px-3 py-3 border border-[#d1d5dc] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#043927]"
+                required
+              />
+            </div>
+
+            {/* Last Name */}
+            <div>
+              <label className="block text-sm text-[#364153] mb-2">Last Name</label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Doe"
                 className="w-full px-3 py-3 border border-[#d1d5dc] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#043927]"
                 required
               />

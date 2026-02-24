@@ -56,24 +56,38 @@ export default function JobSeekerProfilePage() {
     setSuccessMessage('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!user) return;
     
     setIsSaving(true);
     
-    // Update profile
-    authStore.updateJobSeekerProfile(user.id, formData);
-    
-    // Show success message
-    setSuccessMessage('Profile updated successfully! ✅');
-    setIsSaving(false);
-    
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setSuccessMessage('');
-    }, 3000);
+    try {
+      // Split full name into first and last name
+      const nameParts = formData.full_name.trim().split(' ').filter(Boolean);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Update user name in MongoDB via API
+      await authStore.updateUserProfile({
+        firstName,
+        lastName,
+      });
+      
+      // Update localStorage profile with other fields
+      authStore.updateJobSeekerProfile(user.id, formData);
+      
+      // Show success message
+      setSuccessMessage('Profile updated successfully! ✅');
+      
+      // Refresh the page to show updated name in navigation
+      window.location.reload();
+    } catch (err: any) {
+      setSuccessMessage('Error: ' + (err.message || 'Failed to update profile'));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!mounted || !user) {

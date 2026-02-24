@@ -29,6 +29,7 @@ router.post('/register', async function(req, res, next) {
     const password = req.body.password;
     const phoneNumber = req.body.phoneNumber;
     const school = req.body.school;
+    const role = req.body.role || 'candidate'; // Accept role from request
 
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -47,7 +48,8 @@ router.post('/register', async function(req, res, next) {
       email: email.toLowerCase(),
       passwordHash: passwordHash,
       phoneNumber: phoneNumber,
-      school: school
+      school: school,
+      role: role // Set the role
     });
 
     const accessToken = signAccessToken(user);

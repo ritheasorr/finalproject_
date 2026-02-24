@@ -1,62 +1,105 @@
 'use client';
 
+import { apiClient } from '../lib/api';
 import { Application } from '../types/job';
 
-const APPLICATIONS_KEY = 'careerlaunch_applications';
+// Backend API response types
+interface BackendApplication {
+  _id: string;
+  candidate: string | {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string;
+    school?: string;
+  };
+  job: string | {
+    _id: string;
+    title: string;
+    company: string;
+    type: string;
+    location?: string;
+    status: string;
+  };
+  status: 'submitted' | 'reviewing' | 'interview' | 'rejected' | 'hired';
+  coverLetter?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Map backend application to frontend Application type
+function mapBackendApplication(backendApp: BackendApplication): Application {
+  const candidate = typeof backendApp.candidate === 'string' 
+    ? { firstName: 'Unknown', lastName: '', email: '' } 
+    : backendApp.candidate;
+  
+  const job = typeof backendApp.job === 'string'
+    ? { _id: backendApp.job, title: '', company: '', type: '', location: '', status: '' }
+    : backendApp.job;
+
+  return {
+    id: backendApp._id,
+    job_id: typeof backendApp.job === 'string' ? backendApp.job : job._id,
+    candidate_name: `${candidate.firstName} ${candidate.lastName}`.trim(),
+    candidate_email: candidate.email,
+    resume_url: '#', // Backend doesn't have resume URLs yet
+    cover_letter: backendApp.coverLetter || '',
+    ai_score: Math.floor(Math.random() * 35) + 60, // Mock AI score for now
+    status: backendApp.status === 'hired' ? 'accepted' : backendApp.status === 'rejected' ? 'rejected' : 'pending',
+    applied_at: backendApp.createdAt,
+  };
+}
 
 export const applicationStore = {
-  getAllApplications(): Application[] {
-    if (typeof window === 'undefined') return [];
-    const apps = localStorage.getItem(APPLICATIONS_KEY);
-    return apps ? JSON.parse(apps) : [];
+  async getAllApplications(): Promise<Application[]> {
+    // Not available in backend yet
+    return [];
   },
 
-  getApplicationsByUserId(userId: string): Application[] {
-    const applications = this.getAllApplications();
-    return applications.filter(app => app.candidate_email.includes(userId)); // Mock relation
+  async getApplicationsByUserId(userId: string): Promise<Application[]> {
+    try {
+      // Candidates use /applications/my to get their applications
+      const response = await apiClient.get<{ applications: BackendApplication[] }>('/applications/my');
+      return response.applications.map(mapBackendApplication);
+    } catch (error) {
+      console.error('Error fetching user applications:', error);
+      return [];
+    }
   },
 
-  getApplicationById(id: string): Application | undefined {
-    const applications = this.getAllApplications();
-    return applications.find(app => app.id === id);
+  async getApplicationById(id: string): Promise<Application | undefined> {
+    // Not available in backend yet - would need implementation
+    console.warn('Get application by ID not yet implemented in backend');
+    return undefined;
   },
 
-  createApplication(
+  async createApplication(
     jobId: string,
     userId: string,
     candidateName: string,
     candidateEmail: string,
     resumeId: string,
     coverLetter: string
-  ): Application {
-    const applications = this.getAllApplications();
-    
-    // Generate AI score (mock - between 60-95)
-    const aiScore = Math.floor(Math.random() * 35) + 60;
-    
-    const newApplication: Application = {
-      id: crypto.randomUUID(),
-      job_id: jobId,
-      candidate_name: candidateName,
-      candidate_email: candidateEmail,
-      resume_url: `#resume-${resumeId}`,
-      cover_letter: coverLetter,
-      ai_score: aiScore,
-      status: 'pending',
-      applied_at: new Date().toISOString(),
-    };
-    
-    applications.push(newApplication);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(APPLICATIONS_KEY, JSON.stringify(applications));
+  ): Promise<Application> {
+    try {
+      const response = await apiClient.post<{ application: BackendApplication }>('/applications', {
+        jobId,
+        coverLetter,
+      });
+      return mapBackendApplication(response.application);
+    } catch (error) {
+      console.error('Error creating application:', error);
+      throw error;
     }
-    return newApplication;
   },
 
-  hasApplied(userId: string, jobId: string): boolean {
-    const applications = this.getAllApplications();
-    return applications.some(app => 
-      app.candidate_email.includes(userId) && app.job_id === jobId
-    );
+  async hasApplied(userId: string, jobId: string): Promise<boolean> {
+    try {
+      const applications = await this.getApplicationsByUserId(userId);
+      return applications.some(app => app.job_id === jobId);
+    } catch {
+      return false;
+    }
   },
 };

@@ -19,8 +19,8 @@ export default function JobSeekerJobsPage() {
     loadJobs();
   }, []);
 
-  const loadJobs = () => {
-    const allJobs = jobStore.getAllJobs();
+  const loadJobs = async () => {
+    const allJobs = await jobStore.getAllJobs();
     setJobs(allJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
   };
 

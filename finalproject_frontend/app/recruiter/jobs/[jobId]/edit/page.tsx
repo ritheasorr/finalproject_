@@ -27,6 +27,10 @@ export default function EditJobPage() {
 
   useEffect(() => {
     setMounted(true);
+    loadData();
+  }, [jobId, router]);
+
+  const loadData = async () => {
     const currentUser = authStore.getCurrentUser();
     
     if (!currentUser || currentUser.role !== 'recruiter') {
@@ -34,7 +38,7 @@ export default function EditJobPage() {
       return;
     }
 
-    const job = jobStore.getJobById(jobId);
+    const job = await jobStore.getJobById(jobId);
     if (job) {
       setFormData({
         title: job.title,
@@ -47,7 +51,7 @@ export default function EditJobPage() {
     } else {
       router.push('/recruiter/dashboard');
     }
-  }, [jobId, router]);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -70,14 +74,18 @@ export default function EditJobPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validate()) return;
 
-    jobStore.updateJob(jobId, formData);
-    alert('Job updated successfully! ✅');
-    router.push('/recruiter/dashboard');
+    try {
+      await jobStore.updateJob(jobId, formData);
+      alert('Job updated successfully! ✅');
+      router.push('/recruiter/dashboard');
+    } catch (err: any) {
+      alert(err.message || 'Failed to update job');
+    }
   };
 
   if (!mounted) {

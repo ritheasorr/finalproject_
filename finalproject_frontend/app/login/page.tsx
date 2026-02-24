@@ -14,27 +14,26 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    const user = authStore.login(email, password);
-    
-    if (!user) {
-      setError('Invalid email or password');
-      return;
-    }
+    try {
+      const user = await authStore.login(email, password);
+      
+      if (user.role !== userType) {
+        setError(`This account is registered as a ${user.role}. Please select the correct account type.`);
+        return;
+      }
 
-    if (user.role !== userType) {
-      setError(`This account is registered as a ${user.role}. Please select the correct account type.`);
-      return;
-    }
-
-    // Redirect based on role
-    if (user.role === 'jobseeker') {
-      router.push('/jobseeker');
-    } else {
-      router.push('/recruiter');
+      // Redirect based on role
+      if (user.role === 'jobseeker') {
+        window.location.href = '/jobseeker/dashboard';
+      } else {
+        window.location.href = '/recruiter/dashboard';
+      }
+    } catch (err: any) {
+      setError(err.message || 'Invalid email or password');
     }
   };
 
