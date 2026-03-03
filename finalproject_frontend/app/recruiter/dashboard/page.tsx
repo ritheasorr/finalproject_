@@ -168,14 +168,14 @@ export default function RecruiterDashboard() {
           </div>
         </div>
 
-        {/* Jobs List */}
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="px-6 py-4 border-b border-gray-200">
+        {/* Jobs Grid */}
+        <div>
+          <div className="mb-6">
             <h2 className="text-xl font-bold text-[#043927]">Your Job Postings</h2>
           </div>
           
           {jobs.length === 0 ? (
-            <div className="p-12 text-center">
+            <div className="bg-white rounded-lg shadow-sm p-12 text-center">
               <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-gray-900 mb-2">No job postings yet</h3>
               <p className="text-gray-600 mb-6">Get started by posting your first job listing</p>
@@ -188,67 +188,71 @@ export default function RecruiterDashboard() {
               </Link>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {jobs.map((job) => {
                 const applicationCount = getApplicationCount(job.id);
                 return (
-                  <div key={job.id} className="p-6 hover:bg-gray-50 transition">
-                    <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-start gap-3 mb-3">
-                          <h3 className="text-xl font-bold text-[#043927]">{job.title}</h3>
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getJobTypeBadgeColor(job.job_type)}`}>
-                            {getJobTypeLabel(job.job_type)}
-                          </span>
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            {job.location}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="w-4 h-4" />
-                            {job.salary}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            Posted {formatDate(job.created_at)}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Users className="w-4 h-4" />
-                            {applicationCount} {applicationCount === 1 ? 'application' : 'applications'}
-                          </div>
-                        </div>
-                        
-                        <p className="text-gray-700 line-clamp-2">{job.description}</p>
+                  <div key={job.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition flex flex-col">
+                    {/* Card Header */}
+                    <div className="p-6 flex-1">
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="text-lg font-bold text-[#043927] line-clamp-2 flex-1">{job.title}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ml-2 whitespace-nowrap ${getJobTypeBadgeColor(job.job_type)}`}>
+                          {getJobTypeLabel(job.job_type)}
+                        </span>
                       </div>
                       
+                      {/* Job Details */}
+                      <div className="space-y-2 text-sm text-gray-600 mb-4">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 flex-shrink-0" />
+                          <span className="line-clamp-1">{job.location}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 flex-shrink-0" />
+                          <span className="line-clamp-1">{job.salary}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 flex-shrink-0" />
+                          <span>Posted {formatDate(job.created_at)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 flex-shrink-0" />
+                          <span className="font-semibold">{applicationCount} {applicationCount === 1 ? 'application' : 'applications'}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Description */}
+                      <p className="text-gray-700 text-sm line-clamp-3">{job.description}</p>
+                    </div>
+                    
+                    {/* Card Footer */}
+                    <div className="border-t border-gray-100 p-4 flex items-center justify-between">
                       <div className="flex gap-2">
-                        {applicationCount > 0 && (
-                          <Link
-                            href={`/recruiter/jobs/${job.id}/applications`}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
-                          >
-                            <Users className="w-4 h-4" />
-                            View Applications
-                          </Link>
-                        )}
                         <Link
                           href={`/recruiter/jobs/${job.id}/edit`}
                           className="p-2 text-gray-600 hover:text-[#043927] hover:bg-gray-100 rounded-lg transition"
                           title="Edit job"
                         >
-                          <Edit className="w-5 h-5" />
+                          <Edit className="w-4 h-4" />
                         </Link>
                         <button 
                           onClick={() => setDeleteConfirm(job.id)}
                           className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                           title="Delete job"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
+                      {applicationCount > 0 && (
+                        <Link
+                          href={`/recruiter/jobs/${job.id}/applications`}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-1.5 text-sm"
+                        >
+                          <Users className="w-4 h-4" />
+                          View
+                        </Link>
+                      )}
                     </div>
                   </div>
                 );

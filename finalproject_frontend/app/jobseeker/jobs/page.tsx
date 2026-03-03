@@ -133,68 +133,71 @@ export default function JobSeekerJobsPage() {
           </p>
         </div>
 
-        {/* Jobs List */}
-        <div className="space-y-4">
-          {filteredJobs.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-              <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">No jobs found</h3>
-              <p className="text-gray-600">Try adjusting your search or filters</p>
-            </div>
-          ) : (
-            filteredJobs.map((job) => (
-              <div key={job.id} className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-start gap-3 mb-3">
-                      <h3 className="text-xl font-bold text-[#043927]">{job.title}</h3>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getJobTypeBadgeColor(job.job_type)}`}>
-                        {getJobTypeLabel(job.job_type)}
-                      </span>
+        {/* Jobs Grid */}
+        {filteredJobs.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+            <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-900 mb-2">No jobs found</h3>
+            <p className="text-gray-600">Try adjusting your search or filters</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredJobs.map((job) => (
+              <div key={job.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition flex flex-col">
+                {/* Card Header */}
+                <div className="p-6 flex-1">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="text-lg font-bold text-[#043927] line-clamp-2 flex-1">{job.title}</h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ml-2 whitespace-nowrap ${getJobTypeBadgeColor(job.job_type)}`}>
+                      {getJobTypeLabel(job.job_type)}
+                    </span>
+                  </div>
+                  
+                  {/* Job Details */}
+                  <div className="space-y-2 text-sm text-gray-600 mb-4">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 flex-shrink-0" />
+                      <span className="line-clamp-1">{job.location}</span>
                     </div>
-                    
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {job.location}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="w-4 h-4" />
-                        {job.salary}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        Posted {formatDate(job.created_at)}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 flex-shrink-0" />
+                      <span className="line-clamp-1">{job.salary}</span>
                     </div>
-                    
-                    <p className="text-gray-700 mb-4">{job.description}</p>
-                    
-                    <div className="mb-4">
-                      <h4 className="font-semibold text-gray-900 mb-2">Requirements:</h4>
-                      <p className="text-gray-600 text-sm">{job.requirements}</p>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 flex-shrink-0" />
+                      <span>Posted {formatDate(job.created_at)}</span>
                     </div>
+                  </div>
+                  
+                  {/* Description */}
+                  <p className="text-gray-700 text-sm mb-4 line-clamp-3">{job.description}</p>
+                  
+                  {/* Requirements */}
+                  <div className="mb-4">
+                    <h4 className="font-semibold text-gray-900 text-sm mb-1">Requirements:</h4>
+                    <p className="text-gray-600 text-xs line-clamp-2">{job.requirements}</p>
                   </div>
                 </div>
                 
-                <div className="flex gap-3 mt-4">
+                {/* Card Footer */}
+                <div className="p-6 pt-0 flex gap-2">
                   <button 
                     onClick={() => router.push(`/jobseeker/jobs/${job.id}/apply`)}
-                    className="flex-1 bg-[#043927] text-white px-6 py-3 rounded-lg hover:bg-[#065a3a] transition font-medium"
+                    className="flex-1 bg-[#043927] text-white px-4 py-2 rounded-lg hover:bg-[#065a3a] transition font-medium text-sm"
                   >
                     Apply Now
                   </button>
                   <button 
                     onClick={() => alert('Save feature coming soon!')}
-                    className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm"
                   >
                     Save
                   </button>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
