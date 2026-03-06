@@ -19,6 +19,45 @@ function ensureRecruiter(req, res, next) {
   return res.status(403).json({ error: 'Recruiter access required' });
 }
 
+router.post('/', authMiddleware, ensureCandidate, async function(req, res, next) {
+  try {
+    const jobId = req.body.jobId;
+    const coverLetter = req.body.coverLetter;
+
+    if (!jobId) {
+      return res.status(400).json({ error: 'Job ID is required' });
+    }
+
+    const job = await Job.findById(jobId);
+    if (!job || job.status !== 'open') {
+      return res.status(404).json({ error: 'Job not found or not open' });
+    }
+
+    const existingApplication = await Application.findOne({
+      candidate: req.user.id,
+      job: jobId
+    });
+
+    if (existingApplication) {
+      return res.status(409).json({ error: 'You have already applied to this job' });
+    }
+
+    const application = await Application.create({
+      candidate: req.user.id,
+      job: jobId,
+      coverLetter: coverLetter
+    });
+
+    const populatedApplication = await Application.findById(application._id)
+      .populate('job', 'title company type location status')
+      .lean();
+
+    res.status(201).json({ application: populatedApplication });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/my', authMiddleware, ensureCandidate, async function(req, res, next) {
   try {
     const applications = await Application.find({ candidate: req.user.id })

@@ -79,9 +79,14 @@ router.post('/', authMiddleware, ensureRecruiter, upload.single('attachment'), a
   }
 });
 
-router.get('/', authMiddleware, ensureCandidate, async function(req, res, next) {
+router.get('/', authMiddleware, async function(req, res, next) {
   try {
     const query = { status: 'open' };
+
+    // If recruiter, show their jobs; if candidate, show all jobs
+    if (req.user.role === 'recruiter') {
+      query.recruiter = req.user.id;
+    }
 
     if (req.query.type) {
       query.type = req.query.type;
@@ -98,12 +103,18 @@ router.get('/', authMiddleware, ensureCandidate, async function(req, res, next) 
   }
 });
 
-router.get('/:id', authMiddleware, ensureCandidate, async function(req, res, next) {
+router.get('/:id', authMiddleware, async function(req, res, next) {
   try {
     const job = await Job.findById(req.params.id).lean();
     if (!job || job.status !== 'open') {
       return res.status(404).json({ error: 'Job not found' });
     }
+    
+    // Recruiters can only view their own jobs, candidates can view all
+    if (req.user.role === 'recruiter' && job.recruiter.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
     res.json({ job: job });
   } catch (err) {
     next(err);
