@@ -1,8 +1,12 @@
 from flask import Flask, request, jsonify
+import io
 import os
 import pdfplumber
+import easyocr
+from pdf2image import convert_from_bytes
 
 app = Flask(__name__)
+ocr_reader = easyocr.Reader(['en'], gpu=False)
 
 ALLOWED_EXTENSIONS = {'pdf'}
 
@@ -10,13 +14,26 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def ocr_page(image):
+    results = ocr_reader.readtext(image, detail=0)
+    return ' '.join(results)
+
+
 def extract_text_from_pdf(file):
+    pdf_bytes = file.read()
     text = ''
-    with pdfplumber.open(file) as pdf:
-        for page in pdf.pages:
+
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        for i, page in enumerate(pdf.pages):
             page_text = page.extract_text()
             if page_text:
                 text += page_text + '\n'
+            else:
+                # Scanned page — convert to image and run EasyOCR
+                images = convert_from_bytes(pdf_bytes, first_page=i + 1, last_page=i + 1)
+                if images:
+                    text += ocr_page(images[0]) + '\n'
+
     return text.strip()
 
 
