@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authStore } from '@/store/authStore';
 import { User } from '@/types/user';
-import { LogOut, User as UserIcon, LayoutDashboard } from 'lucide-react';
+import { LogOut, User as UserIcon, LayoutDashboard, ChevronDown } from 'lucide-react';
 
 interface NavigationProps {
   variant?: 'default' | 'jobseeker' | 'recruiter';
@@ -15,25 +15,33 @@ export default function Navigation({ variant = 'default' }: NavigationProps) {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Check for current user on mount and whenever localStorage changes
     const checkUser = () => {
       setCurrentUser(authStore.getCurrentUser());
     };
     
     checkUser();
     
-    // Listen for storage events (when localStorage changes in same tab)
     window.addEventListener('storage', checkUser);
-    
-    // Also check periodically in case of same-tab updates
     const interval = setInterval(checkUser, 1000);
     
     return () => {
       window.removeEventListener('storage', checkUser);
       clearInterval(interval);
     };
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleLogout = () => {
@@ -43,95 +51,104 @@ export default function Navigation({ variant = 'default' }: NavigationProps) {
   };
 
   return (
-    <nav className="border-b border-gray-200">
+    <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <Link href="/" className="text-2xl font-bold text-[#043927]">
+        <div className="flex items-center justify-between h-16">
+          {/* Left: Logo */}
+          <Link href="/" className="text-2xl font-bold text-[#043927] flex-shrink-0">
             CareerLaunch
           </Link>
 
-          <div className="flex items-center gap-6">
-            {/* Show different nav links based on variant */}
+          {/* Right: Nav links + Auth/Profile */}
+          <div className="flex items-center gap-1">
             {variant === 'jobseeker' && currentUser?.role === 'jobseeker' && (
               <>
-                <Link href="/jobseeker/dashboard" className="text-gray-700 hover:text-[#043927] transition">
+                <Link href="/jobseeker/dashboard" className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-[#043927] hover:bg-gray-50 transition">
                   Dashboard
                 </Link>
-                <Link href="/jobseeker/jobs" className="text-gray-700 hover:text-[#043927] transition">
+                <Link href="/jobseeker/jobs" className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-[#043927] hover:bg-gray-50 transition">
                   Find Jobs
                 </Link>
               </>
             )}
 
             {variant === 'recruiter' && currentUser?.role === 'recruiter' && (
-              <>
-                <Link href="/recruiter/dashboard" className="text-gray-700 hover:text-[#043927] transition">
-                  Dashboard
-                </Link>
-              </>
+              <Link href="/recruiter/dashboard" className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-[#043927] hover:bg-gray-50 transition">
+                Dashboard
+              </Link>
             )}
 
-            {/* Auth buttons or Profile menu */}
+            {/* Divider between nav links and profile */}
+            {currentUser && (variant === 'jobseeker' || variant === 'recruiter') && (
+              <div className="w-px h-6 bg-gray-200 mx-2" />
+            )}
+
             {currentUser ? (
-              <div className="relative">
+              <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="flex items-center gap-2 text-gray-700 hover:text-[#043927] transition"
+                  className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-lg hover:bg-gray-50 transition"
                 >
-                  <div className="w-9 h-9 rounded-full bg-[#043927] text-white flex items-center justify-center font-semibold">
+                  <div className="w-8 h-8 rounded-full bg-[#043927] text-white flex items-center justify-center text-sm font-semibold flex-shrink-0">
                     {currentUser.full_name?.charAt(0).toUpperCase() || 'U'}
                   </div>
-                  <span className="font-medium">{currentUser.full_name}</span>
+                  <span className="text-sm font-medium text-gray-700 hidden sm:block max-w-[120px] truncate">
+                    {currentUser.full_name}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
                 </button>
 
-                {/* Dropdown Menu */}
                 {showProfileMenu && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                    <div className="px-4 py-2 border-b border-gray-200">
-                      <p className="text-sm font-medium text-gray-900">{currentUser.full_name}</p>
-                      <p className="text-xs text-gray-500">{currentUser.email}</p>
+                  <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-50">
+                    <div className="px-4 py-2.5 border-b border-gray-100">
+                      <p className="text-sm font-medium text-gray-900 truncate">{currentUser.full_name}</p>
+                      <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
                     </div>
 
-                    <Link
-                      href={currentUser.role === 'jobseeker' ? '/jobseeker/dashboard' : '/recruiter/dashboard'}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setShowProfileMenu(false)}
-                    >
-                      <LayoutDashboard className="w-4 h-4" />
-                      Dashboard
-                    </Link>
+                    <div className="py-1">
+                      <Link
+                        href={currentUser.role === 'jobseeker' ? '/jobseeker/dashboard' : '/recruiter/dashboard'}
+                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
+                        onClick={() => setShowProfileMenu(false)}
+                      >
+                        <LayoutDashboard className="w-4 h-4 text-gray-400" />
+                        Dashboard
+                      </Link>
 
-                    <Link
-                      href={currentUser.role === 'jobseeker' ? '/jobseeker/profile' : '/recruiter/profile'}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setShowProfileMenu(false)}
-                    >
-                      <UserIcon className="w-4 h-4" />
-                      Profile
-                    </Link>
+                      <Link
+                        href={currentUser.role === 'jobseeker' ? '/jobseeker/profile' : '/recruiter/profile'}
+                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
+                        onClick={() => setShowProfileMenu(false)}
+                      >
+                        <UserIcon className="w-4 h-4 text-gray-400" />
+                        Profile
+                      </Link>
+                    </div>
 
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Logout
-                    </button>
+                    <div className="border-t border-gray-100 pt-1">
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2.5 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Logout
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
             ) : (
-              <>
-                <Link href="/login" className="text-gray-700 hover:text-[#043927] transition">
+              <div className="flex items-center gap-3">
+                <Link href="/login" className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-[#043927] hover:bg-gray-50 transition">
                   Sign In
                 </Link>
                 <Link
                   href="/signup"
-                  className="bg-[#043927] text-white px-6 py-2 rounded-lg hover:bg-[#065a3a] transition"
+                  className="bg-[#043927] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#065a3a] transition"
                 >
                   {variant === 'recruiter' ? 'Post a Job' : 'Get Started'}
                 </Link>
-              </>
+              </div>
             )}
           </div>
         </div>

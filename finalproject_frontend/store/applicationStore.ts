@@ -41,11 +41,15 @@ function mapBackendApplication(backendApp: BackendApplication): Application {
   return {
     id: backendApp._id,
     job_id: typeof backendApp.job === 'string' ? backendApp.job : job._id,
+    job_title: typeof backendApp.job === 'string' ? '' : (backendApp.job.title || ''),
+    job_company: typeof backendApp.job === 'string' ? '' : (backendApp.job.company || ''),
     candidate_name: `${candidate.firstName} ${candidate.lastName}`.trim(),
     candidate_email: candidate.email,
-    resume_url: '#', // Backend doesn't have resume URLs yet
+    candidate_phone: typeof backendApp.candidate === 'string' ? '' : (backendApp.candidate.phoneNumber || ''),
+    candidate_school: typeof backendApp.candidate === 'string' ? '' : (backendApp.candidate.school || ''),
+    resume_url: '#',
     cover_letter: backendApp.coverLetter || '',
-    ai_score: Math.floor(Math.random() * 35) + 60, // Mock AI score for now
+    ai_score: Math.floor(Math.random() * 35) + 60,
     status: backendApp.status === 'hired' ? 'accepted' : backendApp.status === 'rejected' ? 'rejected' : 'pending',
     applied_at: backendApp.createdAt,
   };

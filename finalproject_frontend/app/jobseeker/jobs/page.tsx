@@ -2,16 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { MapPin, DollarSign, Clock, Briefcase, Search } from 'lucide-react';
+import { MapPin, Clock, Briefcase, Search, Building2, LayoutGrid, List, Tag, ChevronRight } from 'lucide-react';
 import { jobStore } from '@/store/jobStore';
 import { Job } from '@/types/job';
+import Navigation from '@/components/Navigation';
 
 export default function JobSeekerJobsPage() {
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -35,10 +36,10 @@ export default function JobSeekerJobsPage() {
 
   const getJobTypeBadgeColor = (type: string) => {
     switch (type) {
-      case 'FULLTIME': return 'bg-green-100 text-green-800';
-      case 'PARTTIME': return 'bg-blue-100 text-blue-800';
-      case 'INTERNSHIP': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'FULLTIME': return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+      case 'PARTTIME': return 'bg-blue-50 text-blue-700 border border-blue-200';
+      case 'INTERNSHIP': return 'bg-violet-50 text-violet-700 border border-violet-200';
+      default: return 'bg-gray-50 text-gray-700 border border-gray-200';
     }
   };
 
@@ -47,18 +48,17 @@ export default function JobSeekerJobsPage() {
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 14) return '1 week ago';
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
     return date.toLocaleDateString();
   };
 
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          job.location.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'ALL' || job.job_type === filterType;
     return matchesSearch && matchesType;
@@ -67,132 +67,218 @@ export default function JobSeekerJobsPage() {
   if (!mounted) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
+        <div className="animate-pulse text-gray-400">Loading jobs...</div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/jobseeker" className="text-2xl font-bold text-[#043927]">
-              CareerLaunch
-            </Link>
-            <div className="flex items-center gap-4">
-              <Link href="/jobseeker/dashboard" className="text-gray-700 hover:text-[#043927] transition">
-                Dashboard
-              </Link>
-              <Link href="/login" className="text-gray-700 hover:text-[#043927] transition">
-                Sign In
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navigation variant="jobseeker" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Title */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#043927] mb-2">Browse Job Opportunities</h1>
-          <p className="text-gray-600">Find your perfect role from {jobs.length} available positions</p>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Find Jobs</h1>
+          <p className="text-gray-500 mt-1">{jobs.length} open positions</p>
         </div>
 
-        {/* Search and Filter */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        {/* Search & Filters Bar */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search jobs by title, description, or location..."
+                placeholder="Search by title, company, or location..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#043927]"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#043927]/20 focus:border-[#043927]"
               />
             </div>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#043927]"
-            >
-              <option value="ALL">All Types</option>
-              <option value="FULLTIME">Full-Time</option>
-              <option value="PARTTIME">Part-Time</option>
-              <option value="INTERNSHIP">Internship</option>
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#043927]/20 focus:border-[#043927] bg-white"
+              >
+                <option value="ALL">All Types</option>
+                <option value="FULLTIME">Full-Time</option>
+                <option value="PARTTIME">Part-Time</option>
+                <option value="INTERNSHIP">Internship</option>
+              </select>
+              {/* View Toggle */}
+              <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2.5 transition ${viewMode === 'list' ? 'bg-[#043927] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                  title="List view"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2.5 transition ${viewMode === 'grid' ? 'bg-[#043927] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                  title="Grid view"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Results Count */}
-        <div className="mb-4">
-          <p className="text-gray-600">
-            Showing {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'}
-          </p>
+        <div className="mb-4 text-sm text-gray-500">
+          Showing {filteredJobs.length} of {jobs.length} jobs
         </div>
 
-        {/* Jobs Grid */}
+        {/* Empty State */}
         {filteredJobs.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-2">No jobs found</h3>
-            <p className="text-gray-600">Try adjusting your search or filters</p>
+          <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
+            <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">No jobs found</h3>
+            <p className="text-gray-500 text-sm">Try adjusting your search or filters</p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        ) : viewMode === 'list' ? (
+          /* ========== LIST VIEW ========== */
+          <div className="space-y-3">
             {filteredJobs.map((job) => (
-              <div key={job.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition flex flex-col">
-                {/* Card Header */}
-                <div className="p-6 flex-1">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-lg font-bold text-[#043927] line-clamp-2 flex-1">{job.title}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ml-2 whitespace-nowrap ${getJobTypeBadgeColor(job.job_type)}`}>
-                      {getJobTypeLabel(job.job_type)}
-                    </span>
+              <div
+                key={job.id}
+                onClick={() => router.push(`/jobseeker/jobs/${job.id}/apply`)}
+                className="bg-white rounded-xl border border-gray-200 p-5 hover:border-[#043927]/30 hover:shadow-sm transition cursor-pointer group"
+              >
+                <div className="flex items-start gap-4">
+                  {/* Company Icon */}
+                  <div className="w-12 h-12 rounded-lg bg-[#043927]/5 border border-[#043927]/10 flex items-center justify-center flex-shrink-0">
+                    <Building2 className="w-6 h-6 text-[#043927]" />
                   </div>
-                  
-                  {/* Job Details */}
-                  <div className="space-y-2 text-sm text-gray-600 mb-4">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 flex-shrink-0" />
-                      <span className="line-clamp-1">{job.location}</span>
+
+                  {/* Main Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-gray-900 group-hover:text-[#043927] transition">
+                          {job.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-0.5">{job.company}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getJobTypeBadgeColor(job.job_type)}`}>
+                          {getJobTypeLabel(job.job_type)}
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-[#043927] transition" />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 flex-shrink-0" />
-                      <span className="line-clamp-1">{job.salary}</span>
+
+                    {/* Meta */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
+                      {job.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5" />
+                          {job.location}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        {formatDate(job.created_at)}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 flex-shrink-0" />
-                      <span>Posted {formatDate(job.created_at)}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Description */}
-                  <p className="text-gray-700 text-sm mb-4 line-clamp-3">{job.description}</p>
-                  
-                  {/* Requirements */}
-                  <div className="mb-4">
-                    <h4 className="font-semibold text-gray-900 text-sm mb-1">Requirements:</h4>
-                    <p className="text-gray-600 text-xs line-clamp-2">{job.requirements}</p>
+
+                    {/* Description */}
+                    {job.description && (
+                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">{job.description}</p>
+                    )}
+
+                    {/* Skills Tags */}
+                    {job.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {job.skills.slice(0, 5).map((skill, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-xs">
+                            <Tag className="w-3 h-3" />
+                            {skill}
+                          </span>
+                        ))}
+                        {job.skills.length > 5 && (
+                          <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 text-xs">
+                            +{job.skills.length - 5} more
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
-                
-                {/* Card Footer */}
-                <div className="p-6 pt-0 flex gap-2">
-                  <button 
-                    onClick={() => router.push(`/jobseeker/jobs/${job.id}/apply`)}
-                    className="flex-1 bg-[#043927] text-white px-4 py-2 rounded-lg hover:bg-[#065a3a] transition font-medium text-sm"
-                  >
-                    Apply Now
-                  </button>
-                  <button 
-                    onClick={() => alert('Save feature coming soon!')}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm"
-                  >
-                    Save
-                  </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* ========== GRID VIEW ========== */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredJobs.map((job) => (
+              <div
+                key={job.id}
+                onClick={() => router.push(`/jobseeker/jobs/${job.id}/apply`)}
+                className="bg-white rounded-xl border border-gray-200 hover:border-[#043927]/30 hover:shadow-sm transition cursor-pointer group flex flex-col"
+              >
+                <div className="p-5 flex-1">
+                  {/* Header */}
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#043927]/5 border border-[#043927]/10 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="w-5 h-5 text-[#043927]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-semibold text-gray-900 group-hover:text-[#043927] transition line-clamp-2">
+                        {job.title}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-0.5">{job.company}</p>
+                    </div>
+                  </div>
+
+                  {/* Badge + Meta */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getJobTypeBadgeColor(job.job_type)}`}>
+                      {getJobTypeLabel(job.job_type)}
+                    </span>
+                    <span className="text-xs text-gray-400">&bull;</span>
+                    <span className="text-xs text-gray-500">{formatDate(job.created_at)}</span>
+                  </div>
+
+                  {/* Location */}
+                  {job.location && (
+                    <div className="flex items-center gap-1 text-sm text-gray-500 mb-3">
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span className="line-clamp-1">{job.location}</span>
+                    </div>
+                  )}
+
+                  {/* Description */}
+                  {job.description && (
+                    <p className="text-sm text-gray-600 line-clamp-3 mb-3">{job.description}</p>
+                  )}
+
+                  {/* Skills */}
+                  {job.skills.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {job.skills.slice(0, 3).map((skill, i) => (
+                        <span key={i} className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-xs">
+                          {skill}
+                        </span>
+                      ))}
+                      {job.skills.length > 3 && (
+                        <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 text-xs">
+                          +{job.skills.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-5 py-3 border-t border-gray-100">
+                  <span className="text-sm text-[#043927] font-medium group-hover:underline">
+                    View &amp; Apply &rarr;
+                  </span>
                 </div>
               </div>
             ))}

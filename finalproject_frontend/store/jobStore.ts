@@ -54,9 +54,11 @@ function mapBackendJob(backendJob: BackendJob): Job {
     id: backendJob._id,
     title: backendJob.title,
     job_type: backendJob.type.toUpperCase() as 'FULLTIME' | 'PARTTIME' | 'INTERNSHIP',
-    salary: '', // Backend doesn't have salary field yet
+    company: backendJob.company || '',
+    salary: '',
     description: backendJob.description || '',
     requirements: backendJob.skills?.join(', ') || '',
+    skills: backendJob.skills || [],
     location: backendJob.location || '',
     created_at: backendJob.createdAt,
   };
@@ -67,11 +69,15 @@ function mapBackendApplication(backendApp: BackendApplication): Application {
   return {
     id: backendApp._id,
     job_id: backendApp.job._id,
+    job_title: backendApp.job.title || '',
+    job_company: backendApp.job.company || '',
     candidate_name: `${backendApp.candidate.firstName} ${backendApp.candidate.lastName}`,
     candidate_email: backendApp.candidate.email,
-    resume_url: '#', // Backend doesn't have resume URLs yet
+    candidate_phone: backendApp.candidate.phoneNumber || '',
+    candidate_school: backendApp.candidate.school || '',
+    resume_url: '#',
     cover_letter: backendApp.coverLetter || '',
-    ai_score: Math.floor(Math.random() * 35) + 60, // Mock AI score for now
+    ai_score: Math.floor(Math.random() * 35) + 60,
     status: backendApp.status === 'hired' ? 'accepted' : backendApp.status === 'rejected' ? 'rejected' : 'pending',
     applied_at: backendApp.createdAt,
   };

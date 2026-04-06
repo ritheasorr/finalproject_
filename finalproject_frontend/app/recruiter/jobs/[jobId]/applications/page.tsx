@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Mail, FileText, CheckCircle, XCircle, AlertCircle, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, GraduationCap, FileText, CheckCircle, XCircle, AlertCircle, TrendingUp, User, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { authStore } from '@/store/authStore';
 import { jobStore } from '@/store/jobStore';
 import { Application } from '@/types/job';
@@ -17,7 +17,7 @@ export default function ApplicationReviewPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [job, setJob] = useState<any>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
-  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  const [expandedApp, setExpandedApp] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -54,7 +54,7 @@ export default function ApplicationReviewPage() {
     try {
       await jobStore.updateApplicationStatus(appId, status);
       await loadApplications();
-      setSelectedApp(null);
+      setExpandedApp(null);
       alert(`Application ${status === 'accepted' ? 'accepted' : 'rejected'} successfully!`);
     } catch (err: any) {
       alert(err.message || 'Failed to update application status');
@@ -62,24 +62,32 @@ export default function ApplicationReviewPage() {
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 85) return 'text-green-600';
+    if (score >= 85) return 'text-emerald-600';
     if (score >= 70) return 'text-blue-600';
-    if (score >= 50) return 'text-yellow-600';
+    if (score >= 50) return 'text-amber-600';
     return 'text-red-600';
   };
 
-  const getScoreBgColor = (score: number) => {
-    if (score >= 85) return 'bg-green-100';
-    if (score >= 70) return 'bg-blue-100';
-    if (score >= 50) return 'bg-yellow-100';
-    return 'bg-red-100';
+  const getScoreBg = (score: number) => {
+    if (score >= 85) return 'bg-emerald-50 border-emerald-200';
+    if (score >= 70) return 'bg-blue-50 border-blue-200';
+    if (score >= 50) return 'bg-amber-50 border-amber-200';
+    return 'bg-red-50 border-red-200';
   };
 
   const getScoreLabel = (score: number) => {
-    if (score >= 85) return 'Excellent Match';
-    if (score >= 70) return 'Good Match';
-    if (score >= 50) return 'Fair Match';
-    return 'Weak Match';
+    if (score >= 85) return 'Excellent';
+    if (score >= 70) return 'Good';
+    if (score >= 50) return 'Fair';
+    return 'Weak';
+  };
+
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case 'accepted': return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+      case 'rejected': return 'bg-red-50 text-red-700 border border-red-200';
+      default: return 'bg-amber-50 text-amber-700 border border-amber-200';
+    }
   };
 
   const filteredApplications = applications.filter(app => {
@@ -97,7 +105,7 @@ export default function ApplicationReviewPage() {
   if (!mounted || !job) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
+        <div className="animate-pulse text-gray-400">Loading...</div>
       </div>
     );
   }
@@ -106,14 +114,14 @@ export default function ApplicationReviewPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/recruiter" className="text-2xl font-bold text-[#043927]">
               CareerLaunch
             </Link>
             <Link 
               href="/recruiter/dashboard"
-              className="text-gray-600 hover:text-[#043927] transition flex items-center gap-2"
+              className="text-sm text-gray-600 hover:text-[#043927] transition flex items-center gap-1.5"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Dashboard
@@ -122,260 +130,241 @@ export default function ApplicationReviewPage() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Job Info */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h1 className="text-2xl font-bold text-[#043927] mb-2">{job.title}</h1>
-          <p className="text-gray-600">{job.location} • {job.salary}</p>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>
+          <p className="text-gray-500 mt-1">
+            {job.company && <span>{job.company} &bull; </span>}
+            {job.location}
+          </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-[#043927]">{stats.total}</div>
-            <div className="text-sm text-gray-600">Total Applications</div>
-          </div>
-          <div className="bg-blue-50 rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-blue-600">{stats.pending}</div>
-            <div className="text-sm text-gray-600">Pending Review</div>
-          </div>
-          <div className="bg-green-50 rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-green-600">{stats.accepted}</div>
-            <div className="text-sm text-gray-600">Accepted</div>
-          </div>
-          <div className="bg-red-50 rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
-            <div className="text-sm text-gray-600">Rejected</div>
-          </div>
+        {/* Filter Tabs */}
+        <div className="flex gap-2 mb-6">
+          {[
+            { key: 'all' as const, label: 'All', count: stats.total },
+            { key: 'pending' as const, label: 'Pending', count: stats.pending },
+            { key: 'accepted' as const, label: 'Accepted', count: stats.accepted },
+            { key: 'rejected' as const, label: 'Rejected', count: stats.rejected },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                filter === tab.key
+                  ? 'bg-[#043927] text-white'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg transition ${
-                filter === 'all' 
-                  ? 'bg-[#043927] text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              All ({stats.total})
-            </button>
-            <button
-              onClick={() => setFilter('pending')}
-              className={`px-4 py-2 rounded-lg transition ${
-                filter === 'pending' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Pending ({stats.pending})
-            </button>
-            <button
-              onClick={() => setFilter('accepted')}
-              className={`px-4 py-2 rounded-lg transition ${
-                filter === 'accepted' 
-                  ? 'bg-green-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Accepted ({stats.accepted})
-            </button>
-            <button
-              onClick={() => setFilter('rejected')}
-              className={`px-4 py-2 rounded-lg transition ${
-                filter === 'rejected' 
-                  ? 'bg-red-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Rejected ({stats.rejected})
-            </button>
+        {/* Applications */}
+        {filteredApplications.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+            <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">No applications found</h3>
+            <p className="text-gray-500 text-sm">
+              {filter === 'all' 
+                ? 'No one has applied to this job yet.' 
+                : `No ${filter} applications.`}
+            </p>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredApplications.map((app) => {
+              const isExpanded = expandedApp === app.id;
+              return (
+                <div key={app.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  {/* Main Row */}
+                  <div
+                    className="px-6 py-4 cursor-pointer hover:bg-gray-50/50 transition"
+                    onClick={() => setExpandedApp(isExpanded ? null : app.id)}
+                  >
+                    <div className="flex items-center gap-4">
+                      {/* Avatar */}
+                      <div className="w-10 h-10 rounded-full bg-[#043927]/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-semibold text-[#043927]">
+                          {app.candidate_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </span>
+                      </div>
 
-        {/* Applications List */}
-        <div className="bg-white rounded-lg shadow-sm">
-          {filteredApplications.length === 0 ? (
-            <div className="p-12 text-center">
-              <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">No applications found</h3>
-              <p className="text-gray-600">
-                {filter === 'all' 
-                  ? 'No one has applied to this job yet.' 
-                  : `No ${filter} applications for this job.`}
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200">
-              {filteredApplications.map((app) => (
-                <div key={app.id} className="p-6 hover:bg-gray-50 transition">
-                  <div className="flex justify-between items-start gap4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-gray-900">{app.candidate_name}</h3>
-                        <div className={`px-3 py-1 rounded-full ${getScoreBgColor(app.ai_score)}`}>
-                          <div className="flex items-center gap-1">
-                            <TrendingUp className={`w-4 h-4 ${getScoreColor(app.ai_score)}`} />
-                            <span className={`text-sm font-semibold ${getScoreColor(app.ai_score)}`}>
-                              {app.ai_score}% {getScoreLabel(app.ai_score)}
-                            </span>
-                          </div>
-                        </div>
-                        {app.status !== 'pending' && (
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            app.status === 'accepted' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {app.status === 'accepted' ? 'Accepted' : 'Rejected'}
+                      {/* Candidate Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-semibold text-gray-900">{app.candidate_name}</h3>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusStyle(app.status)}`}>
+                            {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
                           </span>
-                        )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {app.candidate_email}
+                          </span>
+                          {app.candidate_phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="w-3 h-3" />
+                              {app.candidate_phone}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {new Date(app.applied_at).toLocaleDateString()}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                        <Mail className="w-4 h-4" />
-                        {app.candidate_email}
-                        <span className="mx-2">•</span>
-                        Applied {new Date(app.applied_at).toLocaleDateString()}
+
+                      {/* AI Score */}
+                      <div className={`px-3 py-1.5 rounded-lg border ${getScoreBg(app.ai_score)} flex items-center gap-1.5 flex-shrink-0`}>
+                        <TrendingUp className={`w-3.5 h-3.5 ${getScoreColor(app.ai_score)}`} />
+                        <span className={`text-sm font-bold ${getScoreColor(app.ai_score)}`}>{app.ai_score}%</span>
+                        <span className={`text-xs ${getScoreColor(app.ai_score)}`}>{getScoreLabel(app.ai_score)}</span>
                       </div>
-                      <p className="text-gray-700 line-clamp-2">{app.cover_letter}</p>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => setSelectedApp(app)}
-                        className="px-4 py-2 bg-[#043927] text-white rounded-lg hover:bg-[#065a3a] transition flex items-center gap-2"
-                      >
-                        <FileText className="w-4 h-4" />
-                        View Details
-                      </button>
+
+                      {/* Quick Actions (pending only) */}
                       {app.status === 'pending' && (
-                        <>
-                          <button 
+                        <div className="flex gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button
                             onClick={() => handleStatusUpdate(app.id, 'accepted')}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
                             title="Accept"
                           >
                             <CheckCircle className="w-5 h-5" />
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleStatusUpdate(app.id, 'rejected')}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
                             title="Reject"
                           >
                             <XCircle className="w-5 h-5" />
                           </button>
-                        </>
+                        </div>
+                      )}
+
+                      {/* Expand Toggle */}
+                      <div className="flex-shrink-0">
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expanded Detail */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-100 px-6 py-5 bg-gray-50/50">
+                      <div className="grid md:grid-cols-2 gap-6">
+                        {/* Candidate Details */}
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-1.5">
+                            <User className="w-4 h-4" />
+                            Candidate Details
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <Mail className="w-4 h-4 text-gray-400" />
+                              {app.candidate_email}
+                            </div>
+                            {app.candidate_phone && (
+                              <div className="flex items-center gap-2 text-gray-600">
+                                <Phone className="w-4 h-4 text-gray-400" />
+                                {app.candidate_phone}
+                              </div>
+                            )}
+                            {app.candidate_school && (
+                              <div className="flex items-center gap-2 text-gray-600">
+                                <GraduationCap className="w-4 h-4 text-gray-400" />
+                                {app.candidate_school}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <Clock className="w-4 h-4 text-gray-400" />
+                              Applied {new Date(app.applied_at).toLocaleDateString()}
+                            </div>
+                          </div>
+
+                          {/* AI Score Detail */}
+                          <div className={`mt-4 p-3 rounded-lg border ${getScoreBg(app.ai_score)}`}>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-medium text-gray-600">AI Resume Score</span>
+                              <span className={`text-lg font-bold ${getScoreColor(app.ai_score)}`}>{app.ai_score}%</span>
+                            </div>
+                            <div className="mt-1.5 w-full bg-gray-200 rounded-full h-1.5">
+                              <div
+                                className={`h-1.5 rounded-full transition-all ${
+                                  app.ai_score >= 85 ? 'bg-emerald-500' :
+                                  app.ai_score >= 70 ? 'bg-blue-500' :
+                                  app.ai_score >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                                }`}
+                                style={{ width: `${app.ai_score}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Cover Letter */}
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-1.5">
+                            <FileText className="w-4 h-4" />
+                            Cover Letter
+                          </h4>
+                          <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-700 whitespace-pre-wrap max-h-48 overflow-y-auto">
+                            {app.cover_letter || 'No cover letter provided.'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      {app.status === 'pending' && (
+                        <div className="flex gap-3 mt-5 pt-5 border-t border-gray-200">
+                          <button
+                            onClick={() => handleStatusUpdate(app.id, 'accepted')}
+                            className="flex-1 bg-emerald-600 text-white px-4 py-2.5 rounded-lg hover:bg-emerald-700 transition text-sm font-medium flex items-center justify-center gap-2"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            Accept Application
+                          </button>
+                          <button
+                            onClick={() => handleStatusUpdate(app.id, 'rejected')}
+                            className="flex-1 bg-red-600 text-white px-4 py-2.5 rounded-lg hover:bg-red-700 transition text-sm font-medium flex items-center justify-center gap-2"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Reject Application
+                          </button>
+                        </div>
+                      )}
+
+                      {app.status !== 'pending' && (
+                        <div className={`mt-5 p-3 rounded-lg flex items-center gap-2 ${
+                          app.status === 'accepted' ? 'bg-emerald-50' : 'bg-red-50'
+                        }`}>
+                          {app.status === 'accepted' ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 text-emerald-600" />
+                              <span className="text-sm font-medium text-emerald-700">Application Accepted</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-4 h-4 text-red-600" />
+                              <span className="text-sm font-medium text-red-700">Application Rejected</span>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
-                  </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Application Detail Modal */}
-      {selectedApp && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedApp(null)}>
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-              <div className="flex justify-between items-start gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{selectedApp.candidate_name}</h2>
-                  <p className="text-gray-600">{selectedApp.candidate_email}</p>
-                </div>
-                <button 
-                  onClick={() => setSelectedApp(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <XCircle className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6">
-              {/* AI Score */}
-              <div className={`p-4 rounded-lg mb-6 ${getScoreBgColor(selectedApp.ai_score)}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-semibold text-gray-700 mb-1">AI Resume Score</div>
-                    <div className={`text-3xl font-bold ${getScoreColor(selectedApp.ai_score)}`}>
-                      {selectedApp.ai_score}%
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`text-lg font-semibold ${getScoreColor(selectedApp.ai_score)}`}>
-                      {getScoreLabel(selectedApp.ai_score)}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      Applied {new Date(selectedApp.applied_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cover Letter */}
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-3">Cover Letter</h3>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-700 whitespace-pre-wrap">{selectedApp.cover_letter}</p>
-                </div>
-              </div>
-
-              {/* Resume Link */}
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-3">Resume</h3>
-                <div className="text-gray-600 text-sm">
-                  Resume ID: {selectedApp.resume_url}
-                </div>
-              </div>
-
-              {/* Actions */}
-              {selectedApp.status === 'pending' && (
-                <div className="flex gap-3 pt-4 border-t border-gray-200">
-                  <button 
-                    onClick={() => handleStatusUpdate(selectedApp.id, 'accepted')}
-                    className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle className="w-5 h-5" />
-                    Accept Application
-                  </button>
-                  <button 
-                    onClick={() => handleStatusUpdate(selectedApp.id, 'rejected')}
-                    className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
-                  >
-                    <XCircle className="w-5 h-5" />
-                    Reject Application
-                  </button>
-                </div>
-              )}
-              
-              {selectedApp.status !== 'pending' && (
-                <div className={`p-4 rounded-lg ${
-                  selectedApp.status === 'accepted' ? 'bg-green-50' : 'bg-red-50'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {selectedApp.status === 'accepted' ? (
-                      <>
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                        <span className="font-semibold text-green-800">Application Accepted</span>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="w-5 h-5 text-red-600" />
-                        <span className="font-semibold text-red-800">Application Rejected</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+              );
+            })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
