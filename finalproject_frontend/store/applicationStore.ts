@@ -24,6 +24,13 @@ interface BackendApplication {
   };
   status: 'submitted' | 'reviewing' | 'interview' | 'rejected' | 'hired';
   coverLetter?: string;
+  resume?: {
+    originalName?: string;
+    mimeType?: string;
+    size?: number;
+    url?: string;
+  };
+  aiScore?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,9 +54,9 @@ function mapBackendApplication(backendApp: BackendApplication): Application {
     candidate_email: candidate.email,
     candidate_phone: typeof backendApp.candidate === 'string' ? '' : (backendApp.candidate.phoneNumber || ''),
     candidate_school: typeof backendApp.candidate === 'string' ? '' : (backendApp.candidate.school || ''),
-    resume_url: '#',
+    resume_url: backendApp.resume?.url || '',
     cover_letter: backendApp.coverLetter || '',
-    ai_score: Math.floor(Math.random() * 35) + 60,
+    ai_score: typeof backendApp.aiScore === 'number' ? backendApp.aiScore : 0,
     status: backendApp.status === 'hired' ? 'accepted' : backendApp.status === 'rejected' ? 'rejected' : 'pending',
     applied_at: backendApp.createdAt,
   };
@@ -80,17 +87,16 @@ export const applicationStore = {
 
   async createApplication(
     jobId: string,
-    userId: string,
-    candidateName: string,
-    candidateEmail: string,
-    resumeId: string,
-    coverLetter: string
+    coverLetter: string,
+    resume: File
   ): Promise<Application> {
     try {
-      const response = await apiClient.post<{ application: BackendApplication }>('/applications', {
-        jobId,
-        coverLetter,
-      });
+      const formData = new FormData();
+      formData.append('jobId', jobId);
+      if (coverLetter) formData.append('coverLetter', coverLetter);
+      formData.append('resume', resume);
+
+      const response = await apiClient.postFormData<{ application: BackendApplication }>('/applications', formData);
       return mapBackendApplication(response.application);
     } catch (error) {
       console.error('Error creating application:', error);

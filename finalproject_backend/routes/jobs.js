@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const Job = require('../models/Job');
+const Application = require('../models/Application');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
@@ -116,6 +117,34 @@ router.get('/:id', authMiddleware, async function(req, res, next) {
     }
     
     res.json({ job: job });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/:id', authMiddleware, ensureRecruiter, async function(req, res, next) {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    if (job.recruiter.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Remove associated attachment file if present.
+    if (job.attachment && job.attachment.url) {
+      const attachmentPath = path.join(__dirname, '..', 'public', job.attachment.url.replace(/^\//, ''));
+      if (fs.existsSync(attachmentPath)) {
+        fs.unlinkSync(attachmentPath);
+      }
+    }
+
+    await Application.deleteMany({ job: job._id });
+    await Job.deleteOne({ _id: job._id });
+
+    res.json({ success: true });
   } catch (err) {
     next(err);
   }

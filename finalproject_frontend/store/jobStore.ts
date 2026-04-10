@@ -44,7 +44,74 @@ interface BackendApplication {
   };
   status: 'submitted' | 'reviewing' | 'interview' | 'rejected' | 'hired';
   coverLetter?: string;
+  resume?: {
+    originalName?: string;
+    mimeType?: string;
+    size?: number;
+    url?: string;
+  };
+  aiScore?: number;
   createdAt: string;
+  updatedAt: string;
+}
+
+interface BackendSavedResume {
+  _id: string;
+  application: string | {
+    _id: string;
+    aiScore?: number;
+    status?: string;
+    createdAt?: string;
+  };
+  candidate?: {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  };
+  job?: {
+    _id: string;
+    title?: string;
+    company?: string;
+  };
+  folderName: string;
+  folderSlug: string;
+  note?: string;
+  savedResumeUrl: string;
+  savedFilename: string;
+  sourceResumeName?: string;
+  updatedAt: string;
+}
+
+interface BackendResumeFolder {
+  folderSlug: string;
+  folderName: string;
+  count: number;
+  updatedAt: string;
+}
+
+export interface RecruiterSavedResume {
+  id: string;
+  applicationId: string;
+  jobId: string;
+  jobTitle: string;
+  jobCompany: string;
+  candidateName: string;
+  candidateEmail: string;
+  applicationScore: number;
+  folderName: string;
+  folderSlug: string;
+  note: string;
+  savedResumeUrl: string;
+  savedFilename: string;
+  sourceResumeName: string;
+  updatedAt: string;
+}
+
+export interface RecruiterResumeFolder {
+  folderSlug: string;
+  folderName: string;
+  count: number;
   updatedAt: string;
 }
 
@@ -75,11 +142,41 @@ function mapBackendApplication(backendApp: BackendApplication): Application {
     candidate_email: backendApp.candidate.email,
     candidate_phone: backendApp.candidate.phoneNumber || '',
     candidate_school: backendApp.candidate.school || '',
-    resume_url: '#',
+    resume_url: backendApp.resume?.url || '',
     cover_letter: backendApp.coverLetter || '',
-    ai_score: Math.floor(Math.random() * 35) + 60,
+    ai_score: typeof backendApp.aiScore === 'number' ? backendApp.aiScore : 0,
     status: backendApp.status === 'hired' ? 'accepted' : backendApp.status === 'rejected' ? 'rejected' : 'pending',
     applied_at: backendApp.createdAt,
+  };
+}
+
+function mapBackendSavedResume(item: BackendSavedResume): RecruiterSavedResume {
+  const applicationId = typeof item.application === 'string' ? item.application : item.application?._id || '';
+  const applicationScore = typeof item.application === 'string' ? 0 : (item.application?.aiScore || 0);
+  const jobId = item.job?._id || '';
+  const jobTitle = item.job?.title || '';
+  const jobCompany = item.job?.company || '';
+  const candidateName = item.candidate
+    ? `${item.candidate.firstName || ''} ${item.candidate.lastName || ''}`.trim()
+    : '';
+  const candidateEmail = item.candidate?.email || '';
+
+  return {
+    id: item._id,
+    applicationId,
+    jobId,
+    jobTitle,
+    jobCompany,
+    candidateName,
+    candidateEmail,
+    applicationScore,
+    folderName: item.folderName,
+    folderSlug: item.folderSlug,
+    note: item.note || '',
+    savedResumeUrl: item.savedResumeUrl,
+    savedFilename: item.savedFilename,
+    sourceResumeName: item.sourceResumeName || '',
+    updatedAt: item.updatedAt,
   };
 }
 
@@ -152,10 +249,13 @@ export const jobStore = {
   },
 
   async deleteJob(id: string): Promise<boolean> {
-    // Note: Backend doesn't have delete endpoint yet
-    // This would need to be implemented in the backend
-    console.warn('Job delete not yet implemented in backend');
-    return false;
+    try {
+      await apiClient.delete<{ success: boolean }>(`/jobs/${id}`);
+      return true;
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      throw error;
+    }
   },
 
   // Applications
@@ -188,6 +288,56 @@ export const jobStore = {
       return mapBackendApplication(response.application);
     } catch (error) {
       console.error('Error updating application status:', error);
+      throw error;
+    }
+  },
+
+  async getRecruiterResumeFolders(): Promise<RecruiterResumeFolder[]> {
+    try {
+      const response = await apiClient.get<{ folders: BackendResumeFolder[] }>('/recruiter-resumes/folders');
+      return response.folders || [];
+    } catch (error) {
+      console.error('Error fetching recruiter resume folders:', error);
+      return [];
+    }
+  },
+
+  async getRecruiterSavedResumes(folderSlug?: string): Promise<RecruiterSavedResume[]> {
+    try {
+      const endpoint = folderSlug
+        ? `/recruiter-resumes?folderSlug=${encodeURIComponent(folderSlug)}`
+        : '/recruiter-resumes';
+      const response = await apiClient.get<{ savedResumes: BackendSavedResume[] }>(endpoint);
+      return (response.savedResumes || []).map(mapBackendSavedResume);
+    } catch (error) {
+      console.error('Error fetching saved recruiter resumes:', error);
+      return [];
+    }
+  },
+
+  async saveRecruiterResume(applicationId: string, folderName: string, note?: string): Promise<RecruiterSavedResume> {
+    try {
+      const response = await apiClient.post<{ savedResume: BackendSavedResume }>('/recruiter-resumes/save', {
+        applicationId,
+        folderName,
+        note: note || '',
+      });
+      return mapBackendSavedResume(response.savedResume);
+    } catch (error) {
+      console.error('Error saving recruiter resume:', error);
+      throw error;
+    }
+  },
+
+  async updateRecruiterSavedResumeNote(savedResumeId: string, note: string): Promise<RecruiterSavedResume> {
+    try {
+      const response = await apiClient.patch<{ savedResume: BackendSavedResume }>(
+        `/recruiter-resumes/${savedResumeId}/note`,
+        { note }
+      );
+      return mapBackendSavedResume(response.savedResume);
+    } catch (error) {
+      console.error('Error updating recruiter resume note:', error);
       throw error;
     }
   },

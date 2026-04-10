@@ -8,7 +8,7 @@ const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-const OCR_SERVICE_URL = process.env.OCR_SERVICE_URL || 'http://localhost:5001';
+const OCR_SERVICE_URL = process.env.OCR_SERVICE_URL;
 
 function ensureCandidate(req, res, next) {
   if (req.user && req.user.role === 'candidate') return next();
@@ -17,6 +17,10 @@ function ensureCandidate(req, res, next) {
 
 router.post('/', authMiddleware, ensureCandidate, upload.single('resume'), async function(req, res, next) {
   try {
+    if (!OCR_SERVICE_URL) {
+      return res.status(503).json({ error: 'OCR service not configured. Set OCR_SERVICE_URL.' });
+    }
+
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }

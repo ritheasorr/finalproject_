@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Edit, Trash2, Users, MapPin, Clock, Briefcase, Building2, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, MapPin, Clock, Briefcase, Building2, Eye, FolderOpen } from 'lucide-react';
 import { authStore } from '@/store/authStore';
 import { jobStore } from '@/store/jobStore';
 import { Job } from '@/types/job';
@@ -40,9 +40,14 @@ export default function RecruiterDashboard() {
   };
 
   const handleDelete = async (id: string) => {
-    await jobStore.deleteJob(id);
-    loadJobs();
-    setDeleteConfirm(null);
+    try {
+      await jobStore.deleteJob(id);
+      await loadJobs();
+      setDeleteConfirm(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete job';
+      alert(message);
+    }
   };
 
   const getJobTypeLabel = (type: string) => {
@@ -101,13 +106,22 @@ export default function RecruiterDashboard() {
             <h1 className="text-2xl font-bold text-gray-900">Recruiter Dashboard</h1>
             <p className="text-gray-500 mt-1">Manage your job postings and review applications</p>
           </div>
-          <Link
-            href="/recruiter/jobs/new"
-            className="bg-[#043927] text-white px-5 py-2.5 rounded-lg hover:bg-[#065a3a] transition flex items-center gap-2 text-sm font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            Post New Job
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/recruiter/saved-resumes"
+              className="bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-sm font-medium"
+            >
+              <FolderOpen className="w-4 h-4" />
+              View Saved Resume
+            </Link>
+            <Link
+              href="/recruiter/jobs/new"
+              className="bg-[#043927] text-white px-5 py-2.5 rounded-lg hover:bg-[#065a3a] transition flex items-center gap-2 text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Post New Job
+            </Link>
+          </div>
         </div>
 
         {/* Stats */}

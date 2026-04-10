@@ -1,54 +1,61 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Mail, Phone, GraduationCap, FileText, CheckCircle, XCircle, AlertCircle, TrendingUp, User, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, GraduationCap, FileText, CheckCircle, XCircle, AlertCircle, TrendingUp, User, Clock, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { authStore } from '@/store/authStore';
 import { jobStore } from '@/store/jobStore';
-import { Application } from '@/types/job';
+import { API_BASE_URL } from '@/lib/api';
+import { Application, Job } from '@/types/job';
 
 export default function ApplicationReviewPage() {
   const router = useRouter();
   const params = useParams();
   const jobId = params?.jobId as string;
   
-  const [mounted, setMounted] = useState(false);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [job, setJob] = useState<any>(null);
+  const [job, setJob] = useState<Job | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
   const [expandedApp, setExpandedApp] = useState<string | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    loadData();
-  }, [jobId, router]);
-
-  const loadData = async () => {
-    const currentUser = authStore.getCurrentUser();
-    
-    if (!currentUser || currentUser.role !== 'recruiter') {
-      router.push('/login');
-      return;
-    }
-
-    if (jobId) {
-      const jobData = await jobStore.getJobById(jobId);
-      if (jobData) {
-        setJob(jobData);
-        await loadApplications();
-      } else {
-        router.push('/recruiter/dashboard');
-      }
-    }
-  };
-
-  const loadApplications = async () => {
+  const loadApplications = useCallback(async () => {
     if (jobId) {
       const apps = await jobStore.getApplicationsByJobId(jobId);
       setApplications(apps.sort((a, b) => (b.ai_score || 0) - (a.ai_score || 0)));
     }
-  };
+  }, [jobId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const currentUser = authStore.getCurrentUser();
+      if (!currentUser || currentUser.role !== 'recruiter') {
+        router.push('/login');
+        return;
+      }
+
+      if (!jobId) {
+        return;
+      }
+
+      const jobData = await jobStore.getJobById(jobId);
+      if (!jobData) {
+        router.push('/recruiter/dashboard');
+        return;
+      }
+
+      if (!cancelled) {
+        setJob(jobData);
+        await loadApplications();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, router, loadApplications]);
 
   const handleStatusUpdate = async (appId: string, status: 'accepted' | 'rejected') => {
     try {
@@ -56,30 +63,32 @@ export default function ApplicationReviewPage() {
       await loadApplications();
       setExpandedApp(null);
       alert(`Application ${status === 'accepted' ? 'accepted' : 'rejected'} successfully!`);
-    } catch (err: any) {
-      alert(err.message || 'Failed to update application status');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update application status';
+      alert(message);
     }
   };
 
+
   const getScoreColor = (score: number) => {
     if (score >= 85) return 'text-emerald-600';
-    if (score >= 70) return 'text-blue-600';
-    if (score >= 50) return 'text-amber-600';
+    if (score >= 65) return 'text-blue-600';
+    if (score >= 40) return 'text-yellow-600';
     return 'text-red-600';
   };
 
   const getScoreBg = (score: number) => {
     if (score >= 85) return 'bg-emerald-50 border-emerald-200';
-    if (score >= 70) return 'bg-blue-50 border-blue-200';
-    if (score >= 50) return 'bg-amber-50 border-amber-200';
+    if (score >= 65) return 'bg-blue-50 border-blue-200';
+    if (score >= 40) return 'bg-amber-50 border-amber-200';
     return 'bg-red-50 border-red-200';
   };
 
   const getScoreLabel = (score: number) => {
     if (score >= 85) return 'Excellent';
-    if (score >= 70) return 'Good';
-    if (score >= 50) return 'Fair';
-    return 'Weak';
+    if (score >= 65) return 'Good';
+    if (score >= 40) return 'Fair';
+    return 'Poor';
   };
 
   const getStatusStyle = (status: string) => {
@@ -102,7 +111,7 @@ export default function ApplicationReviewPage() {
     rejected: applications.filter(a => a.status === 'rejected').length,
   };
 
-  if (!mounted || !job) {
+  if (!job) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-pulse text-gray-400">Loading...</div>
@@ -317,6 +326,28 @@ export default function ApplicationReviewPage() {
                           <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-700 whitespace-pre-wrap max-h-48 overflow-y-auto">
                             {app.cover_letter || 'No cover letter provided.'}
                           </div>
+
+                          {/* Resume */}
+                          <div className="mt-4">
+                            <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1.5">
+                              <FileText className="w-4 h-4" />
+                              Resume
+                            </h4>
+                            {app.resume_url ? (
+                              <a
+                                href={`${API_BASE_URL}${app.resume_url}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 text-sm font-medium text-[#043927] hover:underline"
+                              >
+                                Download Resume
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            ) : (
+                              <div className="text-sm text-gray-500">No resume uploaded.</div>
+                            )}
+                          </div>
+
                         </div>
                       </div>
 

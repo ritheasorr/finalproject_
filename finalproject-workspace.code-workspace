@@ -1,0 +1,22 @@
+{
+  "folders": [
+    { "path": "E:/finalproject_/finalproject_frontend" },
+    { "path": "E:/finalproject_/finalproject_backend" }
+  ],
+  "settings": {
+    "js/ts.tsserver.maxMemory": 4096,
+
+    "files.watcherExclude": {
+      "**/node_modules/**": true,
+      "**/.next/**": true,
+      "**/dist/**": true
+    },
+
+    "files.exclude": {
+      "**/node_modules/**": true,
+      "**/.next/**": true,
+      "**/venv/**": true,
+      "**/__pycache__/**": true
+    }
+  }
+}

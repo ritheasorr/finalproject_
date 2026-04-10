@@ -16,6 +16,7 @@ const authRouter = require('./routes/auth');
 const jobsRouter = require('./routes/jobs');
 const applicationsRouter = require('./routes/applications');
 const resumesRouter = require('./routes/resumes');
+const recruiterResumesRouter = require('./routes/recruiterResumes');
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use('/auth', authRouter);
 app.use('/jobs', jobsRouter);
 app.use('/applications', applicationsRouter);
 app.use('/resumes', resumesRouter);
+app.use('/recruiter-resumes', recruiterResumesRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

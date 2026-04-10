@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MapPin, Clock, Briefcase, Search, Building2, LayoutGrid, List, Tag, ChevronRight } from 'lucide-react';
 import { jobStore } from '@/store/jobStore';
+import { authStore } from '@/store/authStore';
 import { Job } from '@/types/job';
 import Navigation from '@/components/Navigation';
 
@@ -14,15 +15,30 @@ export default function JobSeekerJobsPage() {
   const [filterType, setFilterType] = useState<string>('ALL');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [mounted, setMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     setMounted(true);
+    
+    // Check authentication
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    
     loadJobs();
-  }, []);
+  }, [router]);
 
   const loadJobs = async () => {
-    const allJobs = await jobStore.getAllJobs();
-    setJobs(allJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    try {
+      const allJobs = await jobStore.getAllJobs();
+      setJobs(allJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    } catch (error) {
+      console.error('Failed to load jobs:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getJobTypeLabel = (type: string) => {
@@ -146,7 +162,7 @@ export default function JobSeekerJobsPage() {
             {filteredJobs.map((job) => (
               <div
                 key={job.id}
-                onClick={() => router.push(`/jobseeker/jobs/${job.id}/apply`)}
+                onClick={() => router.push(`/jobseeker/jobs/${job.id}`)}
                 className="bg-white rounded-xl border border-gray-200 p-5 hover:border-[#043927]/30 hover:shadow-sm transition cursor-pointer group"
               >
                 <div className="flex items-start gap-4">
@@ -218,7 +234,7 @@ export default function JobSeekerJobsPage() {
             {filteredJobs.map((job) => (
               <div
                 key={job.id}
-                onClick={() => router.push(`/jobseeker/jobs/${job.id}/apply`)}
+                onClick={() => router.push(`/jobseeker/jobs/${job.id}`)}
                 className="bg-white rounded-xl border border-gray-200 hover:border-[#043927]/30 hover:shadow-sm transition cursor-pointer group flex flex-col"
               >
                 <div className="p-5 flex-1">

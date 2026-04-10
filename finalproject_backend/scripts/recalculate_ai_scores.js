@@ -1,39 +1,11 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const multer = require('multer');
-const FormData = require('form-data');
+require('dotenv').config();
+const mongoose = require('mongoose');
 const fetch = require('node-fetch');
+
 const Application = require('../models/Application');
 const Job = require('../models/Job');
-const authMiddleware = require('../middleware/auth');
-
-const router = express.Router();
-
-const upload = multer({ storage: multer.memoryStorage() });
-
-const OCR_SERVICE_URL = process.env.OCR_SERVICE_URL;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-
-const uploadDir = path.join(__dirname, '..', 'public', 'uploads', 'applications');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-function ensureCandidate(req, res, next) {
-  if (req.user && req.user.role === 'candidate') {
-    return next();
-  }
-  return res.status(403).json({ error: 'Candidate access required' });
-}
-
-function ensureRecruiter(req, res, next) {
-  if (req.user && req.user.role === 'recruiter') {
-    return next();
-  }
-  return res.status(403).json({ error: 'Recruiter access required' });
-}
 
 function normalizeText(str) {
   return String(str || '')
@@ -45,31 +17,32 @@ function normalizeText(str) {
 
 function tokenize(str) {
   const stop = new Set([
-    'a','an','the','and','or','but','if','then','else','when','while','with','without','to','of','in','on','for','at','by','from',
-    'is','are','was','were','be','been','being','as','it','this','that','these','those','you','your','we','our','they','their',
-    'i','me','my','he','she','his','her','them','us','can','could','should','would','will','may','might','must','do','does','did'
+    'a', 'an', 'the', 'and', 'or', 'but', 'if', 'then', 'else', 'when', 'while', 'with', 'without', 'to', 'of', 'in', 'on', 'for', 'at', 'by', 'from',
+    'is', 'are', 'was', 'were', 'be', 'been', 'being', 'as', 'it', 'this', 'that', 'these', 'those', 'you', 'your', 'we', 'our', 'they', 'their',
+    'i', 'me', 'my', 'he', 'she', 'his', 'her', 'them', 'us', 'can', 'could', 'should', 'would', 'will', 'may', 'might', 'must', 'do', 'does', 'did'
   ]);
+
+  const alias = {
+    javascript: 'js',
+    typescript: 'ts',
+    nodejs: 'node',
+    reactjs: 'react',
+    restful: 'api',
+    apis: 'api',
+    mysql: 'database',
+    postgresql: 'database',
+    mongodb: 'database',
+    nosql: 'database',
+    ui: 'frontend',
+    ux: 'frontend'
+  };
+
   const parts = normalizeText(str).split(' ').filter(Boolean);
   return parts
     .filter(function(t) {
       return t.length >= 2 && !stop.has(t);
     })
     .map(function(t) {
-      const alias = {
-        javascript: 'js',
-        typescript: 'ts',
-        nodejs: 'node',
-        reactjs: 'react',
-        restful: 'api',
-        apis: 'api',
-        mysql: 'database',
-        postgresql: 'database',
-        mongodb: 'database',
-        nosql: 'database',
-        ui: 'frontend',
-        ux: 'frontend'
-      };
-
       let token = alias[t] || t;
       if (token.endsWith('ies') && token.length > 5) {
         token = token.slice(0, -3) + 'y';
@@ -144,6 +117,7 @@ function computeLexicalResumeScore(resumeText, job) {
 
   const resumeSet = new Set(resumeTokens);
   const jobSet = new Set(jobTokens);
+
   let intersection = 0;
   jobSet.forEach(function(tok) {
     if (resumeSet.has(tok)) intersection += 1;
@@ -161,7 +135,6 @@ function computeLexicalResumeScore(resumeText, job) {
   const descriptionMatches = descriptionKeywords.filter(function(t) { return resumeSet.has(t); }).length;
   const descriptionCoverage = descriptionKeywords.length === 0 ? 0 : descriptionMatches / descriptionKeywords.length;
 
-  // Requested weighting: description : requirement = 25 : 75
   const weightedRequirementCoverage = (descriptionCoverage * 0.25) + (requirementCoverage * 0.75);
 
   const titleTokens = tokenize(job.title || '').filter(function(t) { return t.length >= 3; });
@@ -183,8 +156,6 @@ function computeLexicalResumeScore(resumeText, job) {
   const jaccard = union === 0 ? 0 : intersection / union;
   const recall = jobSet.size === 0 ? 0 : intersection / jobSet.size;
 
-  // Favor matching required signals and semantic phrase overlap; reduce punishment
-  // from long descriptions by lowering strict union-heavy weight.
   const blended =
     (jaccard * 0.10) +
     (recall * 0.25) +
@@ -195,7 +166,6 @@ function computeLexicalResumeScore(resumeText, job) {
 
   let score = Math.round(blended * 100);
 
-  // Reward clearly relevant resumes even when job posts are verbose.
   if (keywordCoverage >= 0.20) {
     score += 6;
   }
@@ -306,198 +276,76 @@ async function computeGeminiResumeScore(resumeText, job) {
 
 async function computeResumeScore(resumeText, job) {
   const lexicalScore = computeLexicalResumeScore(resumeText, job);
-
-  // Gemini is the primary semantic scorer; lexical score remains an anchor/fallback.
   const geminiScore = await computeGeminiResumeScore(resumeText, job);
   if (geminiScore === null) {
-    return lexicalScore;
+    return { score: lexicalScore, geminiUsed: false };
   }
 
-  return Math.round((lexicalScore * 0.15) + (geminiScore * 0.85));
+  return {
+    score: Math.round((lexicalScore * 0.15) + (geminiScore * 0.85)),
+    geminiUsed: true
+  };
 }
 
-async function extractTextFromPdfBuffer(buffer, originalName, mimeType) {
-  if (!OCR_SERVICE_URL) {
-    return '';
+async function run() {
+  const dryRun = process.argv.includes('--dry-run');
+
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI is not set.');
   }
 
-  const form = new FormData();
-  form.append('file', buffer, {
-    filename: originalName || 'resume.pdf',
-    contentType: mimeType || 'application/pdf'
-  });
+  await mongoose.connect(process.env.MONGODB_URI);
 
-  const ocrResponse = await fetch(`${OCR_SERVICE_URL}/extract`, {
-    method: 'POST',
-    body: form,
-    headers: form.getHeaders()
-  });
+  const jobs = await Job.find({}).lean();
+  const jobById = new Map(jobs.map(function(job) {
+    return [String(job._id), job];
+  }));
 
-  if (!ocrResponse.ok) {
-    // If OCR endpoint is unavailable (misconfigured URL/service down), do not block submission.
-    if (ocrResponse.status === 404 || ocrResponse.status >= 500) {
-      return '';
+  const applications = await Application.find({}).lean();
+
+  let processed = 0;
+  let updated = 0;
+  let missingJobs = 0;
+  let geminiUsed = 0;
+
+  for (const app of applications) {
+    processed += 1;
+    const job = jobById.get(String(app.job));
+    if (!job) {
+      missingJobs += 1;
+      continue;
     }
 
-    let errJson = null;
-    try {
-      errJson = await ocrResponse.json();
-    } catch {
-      // ignore
-    }
-    const msg = (errJson && errJson.error) ? errJson.error : 'OCR extraction failed';
-    const error = new Error(msg);
-    error.status = 422;
-    throw error;
-  }
-
-  const { text } = await ocrResponse.json();
-  return text || '';
-}
-
-function extractTextFromTxtBuffer(buffer) {
-  try {
-    const text = buffer.toString('utf-8');
-    return text.trim();
-  } catch (err) {
-    throw new Error('Failed to read text file');
-  }
-}
-
-router.post('/', authMiddleware, ensureCandidate, upload.single('resume'), async function(req, res, next) {
-  try {
-    const jobId = req.body.jobId;
-    const coverLetter = req.body.coverLetter;
-
-    if (!jobId) {
-      return res.status(400).json({ error: 'Job ID is required' });
+    const computed = await computeResumeScore(app.resumeText || '', job);
+    if (computed.geminiUsed) {
+      geminiUsed += 1;
     }
 
-    if (!req.file) {
-      return res.status(400).json({ error: 'Resume file is required' });
-    }
-
-    // Support both PDF and TXT files
-    const isPdf = req.file.mimetype === 'application/pdf';
-    const isTxt = req.file.mimetype === 'text/plain';
-
-    if (!isPdf && !isTxt) {
-      return res.status(400).json({ error: 'Only PDF and TXT files are supported' });
-    }
-
-    const job = await Job.findById(jobId);
-    if (!job || job.status !== 'open') {
-      return res.status(404).json({ error: 'Job not found or not open' });
-    }
-
-    const existingApplication = await Application.findOne({
-      candidate: req.user.id,
-      job: jobId
-    });
-
-    if (existingApplication) {
-      return res.status(409).json({ error: 'You have already applied to this job' });
-    }
-
-    const safeOriginalBase = path.basename(req.file.originalname || 'resume', path.extname(req.file.originalname || ''));
-    const timestamp = Date.now();
-    const extension = isPdf ? '.pdf' : '.txt';
-    const filename = safeOriginalBase.replace(/[^a-zA-Z0-9-_]/g, '') + '-' + req.user.id + '-' + timestamp + extension;
-    const diskPath = path.join(uploadDir, filename);
-    fs.writeFileSync(diskPath, req.file.buffer);
-
-    // Extract text based on file type
-    let resumeText;
-    if (isPdf) {
-      try {
-        resumeText = await extractTextFromPdfBuffer(req.file.buffer, req.file.originalname, req.file.mimetype);
-      } catch (ocrErr) {
-        if (ocrErr && ocrErr.status === 422) {
-          return res.status(422).json({ error: ocrErr.message || 'OCR extraction failed' });
-        }
-        resumeText = '';
+    if (computed.score !== app.aiScore) {
+      updated += 1;
+      if (!dryRun) {
+        await Application.updateOne({ _id: app._id }, { $set: { aiScore: computed.score } });
       }
-    } else {
-      resumeText = extractTextFromTxtBuffer(req.file.buffer);
     }
-
-    const aiScore = await computeResumeScore(resumeText, job);
-
-    const application = await Application.create({
-      candidate: req.user.id,
-      job: jobId,
-      coverLetter: coverLetter,
-      resume: {
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        size: req.file.size,
-        url: '/uploads/applications/' + filename
-      },
-      resumeText: resumeText,
-      aiScore: aiScore
-    });
-
-    const populatedApplication = await Application.findById(application._id)
-      .populate('job', 'title company type location status')
-      .lean();
-
-    res.status(201).json({ application: populatedApplication });
-  } catch (err) {
-    next(err);
   }
-});
 
-router.get('/my', authMiddleware, ensureCandidate, async function(req, res, next) {
+  console.log(JSON.stringify({
+    dryRun: dryRun,
+    processed: processed,
+    updated: updated,
+    missingJobs: missingJobs,
+    geminiUsed: geminiUsed
+  }, null, 2));
+
+  await mongoose.disconnect();
+}
+
+run().catch(async function(err) {
+  console.error('recalculate_ai_scores failed:', err.message);
   try {
-    const applications = await Application.find({ candidate: req.user.id })
-      .populate('job', 'title company type location status')
-      .sort({ createdAt: -1 })
-      .lean();
-
-    res.json({ applications: applications });
-  } catch (err) {
-    next(err);
+    await mongoose.disconnect();
+  } catch {
+    // ignore disconnect errors
   }
+  process.exit(1);
 });
-
-router.get('/received', authMiddleware, ensureRecruiter, async function(req, res, next) {
-  try {
-    const jobIds = await Job.find({ recruiter: req.user.id }).distinct('_id');
-    const applications = await Application.find({ job: { $in: jobIds } })
-      .populate('job', 'title company type location status')
-      .populate('candidate', 'firstName lastName email phoneNumber school')
-      .sort({ createdAt: -1 })
-      .lean();
-
-    res.json({ applications: applications });
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.patch('/:id/status', authMiddleware, ensureRecruiter, async function(req, res, next) {
-  try {
-    const nextStatus = req.body.status;
-    if (!['hired', 'rejected'].includes(nextStatus)) {
-      return res.status(400).json({ error: 'Invalid status' });
-    }
-
-    const application = await Application.findById(req.params.id).populate('job', 'recruiter');
-    if (!application) {
-      return res.status(404).json({ error: 'Application not found' });
-    }
-
-    if (!application.job || application.job.recruiter.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Recruiter access required' });
-    }
-
-    application.status = nextStatus;
-    await application.save();
-
-    res.json({ application: application });
-  } catch (err) {
-    next(err);
-  }
-});
-
-module.exports = router;
