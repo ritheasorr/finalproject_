@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Save, User as UserIcon } from 'lucide-react';
 import { authStore } from '@/store/authStore';
 import { User, JobSeekerProfile } from '@/types/user';
+import { PageShell } from '@/components/ui/page-shell';
 
 export default function JobSeekerProfilePage() {
   const router = useRouter();
@@ -99,33 +100,20 @@ export default function JobSeekerProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/jobseeker" className="text-2xl font-bold text-[#043927]">
-              CareerLaunch
-            </Link>
-            <div className="flex items-center gap-4">
-              <Link 
-                href="/jobseeker/dashboard" 
-                className="text-gray-700 hover:text-[#043927] transition flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Dashboard
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Title */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#043927] mb-2">Edit Profile</h1>
-          <p className="text-gray-600">Update your information to help employers find you</p>
-        </div>
+    <PageShell
+      variant="jobseeker"
+      title="Edit Profile"
+      subtitle="Update your information to help employers find you"
+      actions={
+        <Link
+          href="/jobseeker/dashboard"
+          className="text-gray-700 hover:text-[#043927] transition inline-flex items-center gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
+      }
+    >
 
         {/* Success Message */}
         {successMessage && (
@@ -135,7 +123,7 @@ export default function JobSeekerProfilePage() {
         )}
 
         {/* Profile Form */}
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-8">
+        <form onSubmit={handleSubmit} className="surface-card p-8">
           <div className="flex items-center gap-4 mb-8">
             <div className="bg-[#043927]/10 w-16 h-16 rounded-full flex items-center justify-center">
               <UserIcon className="w-8 h-8 text-[#043927]" />
@@ -233,7 +221,7 @@ export default function JobSeekerProfilePage() {
         </form>
 
         {/* Additional Info */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="mt-6 surface-card p-4">
           <h3 className="font-semibold text-blue-900 mb-2">💡 Profile Tips</h3>
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• Complete profiles get 3x more views from recruiters</li>
@@ -242,7 +230,6 @@ export default function JobSeekerProfilePage() {
             <li>• Be specific about your location preferences</li>
           </ul>
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }

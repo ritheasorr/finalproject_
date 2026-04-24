@@ -4,25 +4,25 @@
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
+  --background: #f4f7f4;
+  --foreground: oklch(0.19 0.02 150);
   --card: #ffffff;
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
+  --primary: #0b3b2f;
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.95 0.0058 264.53);
   --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
+  --muted: #e9f0ea;
+  --muted-foreground: #536a62;
+  --accent: #e2ece6;
   --accent-foreground: #030213;
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
   --border: rgba(0, 0, 0, 0.1);
   --input: transparent;
-  --input-background: #f3f3f5;
+  --input-background: #f7faf8;
   --switch-background: #cbced4;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
@@ -32,7 +32,7 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
+  --radius: 0.9rem;
 }
 
 .dark {
@@ -92,7 +92,68 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 10% 15%, rgba(31, 122, 78, 0.12), transparent 40%),
+    radial-gradient(circle at 90% 5%, rgba(17, 88, 63, 0.1), transparent 35%),
+    radial-gradient(circle at 50% 100%, rgba(28, 95, 70, 0.1), transparent 38%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.page-gradient {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.66), rgba(244, 247, 244, 0.9)),
+    radial-gradient(circle at 0% 0%, rgba(95, 165, 122, 0.14), transparent 36%),
+    radial-gradient(circle at 100% 20%, rgba(41, 108, 77, 0.12), transparent 40%);
+}
+
+.surface-card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(15, 66, 51, 0.12);
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(9, 43, 33, 0.07);
+  backdrop-filter: blur(8px);
+}
+
+.surface-card-hover {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.surface-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(9, 60, 45, 0.26);
+  box-shadow: 0 16px 34px rgba(9, 43, 33, 0.12);
+}
+
+.hero-shell {
+  border-radius: 1.35rem;
+  border: 1px solid rgba(224, 236, 229, 0.35);
+  background:
+    linear-gradient(135deg, #0c3f30 0%, #145e47 60%, #0f4f3b 100%);
+  box-shadow: 0 22px 45px rgba(11, 53, 40, 0.28);
+}
+
+.stagger-in {
+  animation: riseIn 420ms ease both;
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

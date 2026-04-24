@@ -8,6 +8,7 @@ import { authStore } from '@/store/authStore';
 import { jobStore } from '@/store/jobStore';
 import { applicationStore } from '@/store/applicationStore';
 import { Job } from '@/types/job';
+import { PageShell } from '@/components/ui/page-shell';
 
 export default function JobDetailsAndApplyPage() {
   const router = useRouter();
@@ -125,23 +126,18 @@ export default function JobDetailsAndApplyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/jobseeker" className="text-2xl font-bold text-[#043927]">
-              CareerLaunch
-            </Link>
-            <Link href="/jobseeker/jobs" className="text-sm text-gray-600 hover:text-[#043927] transition flex items-center gap-1.5">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Jobs
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+    <PageShell
+      variant="jobseeker"
+      title={job.title}
+      subtitle={job.company}
+      actions={
+        <Link href="/jobseeker/jobs" className="text-sm text-gray-600 hover:text-[#043927] transition inline-flex items-center gap-1.5">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Jobs
+        </Link>
+      }
+    >
+        <div className="surface-card p-6 mb-6">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-lg bg-[#043927]/5 border border-[#043927]/10 flex items-center justify-center flex-shrink-0">
               <Building2 className="w-6 h-6 text-[#043927]" />
@@ -196,7 +192,7 @@ export default function JobDetailsAndApplyPage() {
         </div>
 
         {hasApplied ? (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 text-center">
+          <div className="surface-card p-8 text-center">
             <Briefcase className="w-12 h-12 text-amber-500 mx-auto mb-3" />
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Already Applied</h2>
             <p className="text-gray-500 text-sm mb-5">
@@ -218,7 +214,7 @@ export default function JobDetailsAndApplyPage() {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6">
+          <form onSubmit={handleSubmit} className="surface-card p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-5">Submit Resume For This Job</h2>
 
             {error && (
@@ -276,7 +272,6 @@ export default function JobDetailsAndApplyPage() {
             </div>
           </form>
         )}
-      </div>
-    </div>
+    </PageShell>
   );
 }

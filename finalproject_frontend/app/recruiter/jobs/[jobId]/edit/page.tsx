@@ -7,6 +7,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { authStore } from '@/store/authStore';
 import { jobStore } from '@/store/jobStore';
 import { JobType } from '@/types/job';
+import { PageShell } from '@/components/ui/page-shell';
 
 export default function EditJobPage() {
   const router = useRouter();
@@ -97,32 +98,21 @@ export default function EditJobPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/recruiter" className="text-2xl font-bold text-[#043927]">
-              CareerLaunch
-            </Link>
-            <Link 
-              href="/recruiter/dashboard"
-              className="text-gray-600 hover:text-[#043927] transition flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Dashboard
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#043927] mb-2">Edit Job Posting</h1>
-          <p className="text-gray-600">Update your job posting details</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-8">
+    <PageShell
+      variant="recruiter"
+      title="Edit Job Posting"
+      subtitle="Update your job posting details"
+      actions={
+        <Link
+          href="/recruiter/dashboard"
+          className="text-gray-600 hover:text-[#043927] transition inline-flex items-center gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
+      }
+    >
+        <form onSubmit={handleSubmit} className="surface-card p-8">
           {/* Job Title */}
           <div className="mb-6">
             <label className="block text-sm font-semibold text-gray-900 mb-2">
@@ -247,7 +237,6 @@ export default function EditJobPage() {
             </Link>
           </div>
         </form>
-      </div>
-    </div>
+    </PageShell>
   );
 }

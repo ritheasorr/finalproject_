@@ -6,7 +6,7 @@ import { MapPin, Clock, Briefcase, Search, Building2, LayoutGrid, List, Tag, Che
 import { jobStore } from '@/store/jobStore';
 import { authStore } from '@/store/authStore';
 import { Job } from '@/types/job';
-import Navigation from '@/components/Navigation';
+import { PageShell } from '@/components/ui/page-shell';
 
 export default function JobSeekerJobsPage() {
   const router = useRouter();
@@ -89,18 +89,14 @@ export default function JobSeekerJobsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation variant="jobseeker" />
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Find Jobs</h1>
-          <p className="text-gray-500 mt-1">{jobs.length} open positions</p>
-        </div>
+    <PageShell
+      variant="jobseeker"
+      title="Find Jobs"
+      subtitle={`${jobs.length} open positions`}
+    >
 
         {/* Search & Filters Bar */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+        <div className="surface-card p-4 mb-6">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -151,7 +147,7 @@ export default function JobSeekerJobsPage() {
 
         {/* Empty State */}
         {filteredJobs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
+          <div className="surface-card p-16 text-center">
             <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <h3 className="text-lg font-semibold text-gray-900 mb-1">No jobs found</h3>
             <p className="text-gray-500 text-sm">Try adjusting your search or filters</p>
@@ -163,7 +159,7 @@ export default function JobSeekerJobsPage() {
               <div
                 key={job.id}
                 onClick={() => router.push(`/jobseeker/jobs/${job.id}`)}
-                className="bg-white rounded-xl border border-gray-200 p-5 hover:border-[#043927]/30 hover:shadow-sm transition cursor-pointer group"
+                className="surface-card surface-card-hover p-5 cursor-pointer group"
               >
                 <div className="flex items-start gap-4">
                   {/* Company Icon */}
@@ -235,7 +231,7 @@ export default function JobSeekerJobsPage() {
               <div
                 key={job.id}
                 onClick={() => router.push(`/jobseeker/jobs/${job.id}`)}
-                className="bg-white rounded-xl border border-gray-200 hover:border-[#043927]/30 hover:shadow-sm transition cursor-pointer group flex flex-col"
+                className="surface-card surface-card-hover cursor-pointer group flex flex-col"
               >
                 <div className="p-5 flex-1">
                   {/* Header */}
@@ -300,7 +296,6 @@ export default function JobSeekerJobsPage() {
             ))}
           </div>
         )}
-      </div>
-    </div>
+    </PageShell>
   );
 }

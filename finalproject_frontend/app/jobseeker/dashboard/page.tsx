@@ -7,7 +7,7 @@ import { User, FileText, Briefcase, Upload, Building2, Clock, CheckCircle, XCirc
 import { authStore } from '@/store/authStore';
 import { applicationStore } from '@/store/applicationStore';
 import { Application } from '@/types/job';
-import Navigation from '@/components/Navigation';
+import { PageShell } from '@/components/ui/page-shell';
 
 export default function JobSeekerDashboard() {
   const router = useRouter();
@@ -90,21 +90,15 @@ export default function JobSeekerDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation variant="jobseeker" />
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Welcome back, {user.full_name.split(' ')[0]}!
-          </h1>
-          <p className="text-gray-500 mt-1">Track your applications and manage your job search</p>
-        </div>
+    <PageShell
+      variant="jobseeker"
+      title={`Welcome back, ${user.full_name.split(' ')[0]}!`}
+      subtitle="Track your applications and manage your job search"
+    >
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="surface-card surface-card-hover p-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-[#043927]/10 flex items-center justify-center">
                 <Briefcase className="w-5 h-5 text-[#043927]" />
@@ -115,7 +109,7 @@ export default function JobSeekerDashboard() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="surface-card surface-card-hover p-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
                 <Clock className="w-5 h-5 text-amber-600" />
@@ -126,7 +120,7 @@ export default function JobSeekerDashboard() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="surface-card surface-card-hover p-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-emerald-600" />
@@ -137,7 +131,7 @@ export default function JobSeekerDashboard() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="surface-card surface-card-hover p-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
                 <Upload className="w-5 h-5 text-violet-600" />
@@ -167,7 +161,7 @@ export default function JobSeekerDashboard() {
 
           <Link
             href="/jobseeker/profile"
-            className="bg-white rounded-xl border border-gray-200 p-6 hover:border-[#043927]/30 hover:shadow-sm transition group"
+            className="surface-card surface-card-hover p-6 group"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -180,7 +174,7 @@ export default function JobSeekerDashboard() {
         </div>
 
         {/* Recent Applications */}
-        <div className="bg-white rounded-xl border border-gray-200">
+        <div className="surface-card">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Recent Applications</h2>
             {applications.length > 0 && (
@@ -234,7 +228,6 @@ export default function JobSeekerDashboard() {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }

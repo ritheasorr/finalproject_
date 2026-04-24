@@ -17,14 +17,14 @@ export default function JobSeekerPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen page-gradient">
       {/* Navigation */}
       <Navigation variant="jobseeker" />
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-[#043927] to-[#065a3a] text-white py-20">
+      <section className="text-white py-10 sm:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-4xl mx-auto">
+          <div className="hero-shell text-center max-w-5xl mx-auto px-6 py-14 sm:px-12 stagger-in">
             <div className="inline-block bg-white/10 text-white px-4 py-2 rounded-full text-sm mb-6">
               ✨ 500+ new opportunities added this week
             </div>
@@ -34,7 +34,7 @@ export default function JobSeekerPage() {
             <p className="text-xl mb-8 text-white/90">
               Connect with top companies offering jobs and internships designed for students and early-career professionals.
             </p>
-            <div className="flex justify-center gap-4">
+            <div className="flex flex-wrap justify-center gap-4">
               <Link 
                 href="/jobseeker/jobs"
                 className="bg-white text-[#043927] px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition flex items-center gap-2"
@@ -56,7 +56,7 @@ export default function JobSeekerPage() {
       </section>
 
       {/* Features */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-[#043927] mb-4">Why Job Seekers Love CareerLaunch</h2>
@@ -65,8 +65,8 @@ export default function JobSeekerPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition border border-gray-100">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="surface-card surface-card-hover p-8">
               <div className="bg-gradient-to-br from-[#043927] to-[#065a3a] w-14 h-14 rounded-lg flex items-center justify-center mb-6">
                 <Briefcase className="w-7 h-7 text-white" />
               </div>
@@ -76,7 +76,7 @@ export default function JobSeekerPage() {
               </p>
             </div>
 
-            <div className="bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition border border-gray-100">
+            <div className="surface-card surface-card-hover p-8">
               <div className="bg-gradient-to-br from-[#065a3a] to-[#087d4e] w-14 h-14 rounded-lg flex items-center justify-center mb-6">
                 <Clock className="w-7 h-7 text-white" />
               </div>
@@ -86,7 +86,7 @@ export default function JobSeekerPage() {
               </p>
             </div>
 
-            <div className="bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition border border-gray-100">
+            <div className="surface-card surface-card-hover p-8">
               <div className="bg-gradient-to-br from-[#043927] to-[#087d4e] w-14 h-14 rounded-lg flex items-center justify-center mb-6">
                 <Shield className="w-7 h-7 text-white" />
               </div>
@@ -96,7 +96,7 @@ export default function JobSeekerPage() {
               </p>
             </div>
 
-            <div className="bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition border border-gray-100">
+            <div className="surface-card surface-card-hover p-8">
               <div className="bg-gradient-to-br from-[#065a3a] to-[#043927] w-14 h-14 rounded-lg flex items-center justify-center mb-6">
                 <TrendingUp className="w-7 h-7 text-white" />
               </div>

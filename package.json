@@ -1,0 +1,7 @@
+{
+  "name": "finalproject-root",
+  "private": true,
+  "scripts": {
+    "dev": "npx --yes concurrently -n backend,frontend,ocr -c yellow,cyan,magenta \"npm --prefix finalproject_backend run dev\" \"npm --prefix finalproject_frontend run dev\" \"python ocr_service/app.py\""
+  }
+}

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Save, Building2 } from 'lucide-react';
 import { authStore } from '@/store/authStore';
 import { User } from '@/types/user';
-import Navigation from '@/components/Navigation';
+import { PageShell } from '@/components/ui/page-shell';
 
 export default function RecruiterProfilePage() {
   const router = useRouter();
@@ -86,22 +86,23 @@ export default function RecruiterProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <Navigation variant="recruiter" />
-
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Link */}
-        <Link 
-          href="/recruiter/dashboard" 
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-[#043927] transition mb-6"
+    <PageShell
+      variant="recruiter"
+      title="Recruiter Profile"
+      subtitle="Keep your recruiter identity and employer presence up to date"
+      actions={
+        <Link
+          href="/recruiter/dashboard"
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-[#043927] transition"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
         </Link>
+      }
+    >
 
         {/* Profile Card */}
-        <div className="bg-white rounded-lg shadow-sm p-8">
+        <div className="surface-card p-8">
           <div className="flex items-center gap-4 mb-6">
             <div className="bg-[#043927] text-white w-16 h-16 rounded-full flex items-center justify-center">
               <Building2 className="w-8 h-8" />
@@ -208,12 +209,11 @@ export default function RecruiterProfilePage() {
         </div>
 
         {/* Info Box */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="mt-6 surface-card p-4">
           <p className="text-sm text-blue-800">
             <strong>💡 Tip:</strong> Keep your profile up to date to help candidates learn more about your company and improve your employer brand.
           </p>
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }

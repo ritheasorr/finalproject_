@@ -8,6 +8,7 @@ import { authStore } from '@/store/authStore';
 import { jobStore } from '@/store/jobStore';
 import { API_BASE_URL } from '@/lib/api';
 import { Application, Job } from '@/types/job';
+import { PageShell } from '@/components/ui/page-shell';
 
 export default function ApplicationReviewPage() {
   const router = useRouter();
@@ -120,34 +121,20 @@ export default function ApplicationReviewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/recruiter" className="text-2xl font-bold text-[#043927]">
-              CareerLaunch
-            </Link>
-            <Link 
-              href="/recruiter/dashboard"
-              className="text-sm text-gray-600 hover:text-[#043927] transition flex items-center gap-1.5"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Dashboard
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Job Info */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>
-          <p className="text-gray-500 mt-1">
-            {job.company && <span>{job.company} &bull; </span>}
-            {job.location}
-          </p>
-        </div>
+    <PageShell
+      variant="recruiter"
+      title={job.title}
+      subtitle={`${job.company ? `${job.company} • ` : ''}${job.location || ''}`}
+      actions={
+        <Link
+          href="/recruiter/dashboard"
+          className="text-sm text-gray-600 hover:text-[#043927] transition inline-flex items-center gap-1.5"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
+      }
+    >
 
         {/* Filter Tabs */}
         <div className="flex gap-2 mb-6">
@@ -173,7 +160,7 @@ export default function ApplicationReviewPage() {
 
         {/* Applications */}
         {filteredApplications.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <div className="surface-card p-12 text-center">
             <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <h3 className="text-lg font-semibold text-gray-900 mb-1">No applications found</h3>
             <p className="text-gray-500 text-sm">
@@ -187,7 +174,7 @@ export default function ApplicationReviewPage() {
             {filteredApplications.map((app) => {
               const isExpanded = expandedApp === app.id;
               return (
-                <div key={app.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div key={app.id} className="surface-card overflow-hidden">
                   {/* Main Row */}
                   <div
                     className="px-6 py-4 cursor-pointer hover:bg-gray-50/50 transition"
@@ -323,7 +310,7 @@ export default function ApplicationReviewPage() {
                             <FileText className="w-4 h-4" />
                             Cover Letter
                           </h4>
-                          <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-700 whitespace-pre-wrap max-h-48 overflow-y-auto">
+                          <div className="surface-card p-4 text-sm text-gray-700 whitespace-pre-wrap max-h-48 overflow-y-auto">
                             {app.cover_letter || 'No cover letter provided.'}
                           </div>
 
@@ -395,7 +382,6 @@ export default function ApplicationReviewPage() {
             })}
           </div>
         )}
-      </div>
-    </div>
+    </PageShell>
   );
 }

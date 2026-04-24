@@ -51,11 +51,11 @@ export default function Navigation({ variant = 'default' }: NavigationProps) {
   };
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
+    <nav className="sticky top-0 z-40 border-b border-[#0f4d3a]/10 bg-white/85 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left: Logo */}
-          <Link href="/" className="text-2xl font-bold text-[#043927] flex-shrink-0">
+          <Link href="/" className="text-2xl font-bold tracking-tight text-[#043927] flex-shrink-0">
             CareerLaunch
           </Link>
 
@@ -87,7 +87,7 @@ export default function Navigation({ variant = 'default' }: NavigationProps) {
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-lg hover:bg-gray-50 transition"
+                  className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-xl border border-transparent hover:border-[#0f4d3a]/15 hover:bg-[#f4f8f5] transition"
                 >
                   <div className="w-8 h-8 rounded-full bg-[#043927] text-white flex items-center justify-center text-sm font-semibold flex-shrink-0">
                     {currentUser.full_name?.charAt(0).toUpperCase() || 'U'}
@@ -99,7 +99,7 @@ export default function Navigation({ variant = 'default' }: NavigationProps) {
                 </button>
 
                 {showProfileMenu && (
-                  <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-50">
+                  <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl shadow-lg border border-[#0f4d3a]/15 py-1.5 z-50">
                     <div className="px-4 py-2.5 border-b border-gray-100">
                       <p className="text-sm font-medium text-gray-900 truncate">{currentUser.full_name}</p>
                       <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
@@ -144,7 +144,7 @@ export default function Navigation({ variant = 'default' }: NavigationProps) {
                 </Link>
                 <Link
                   href="/signup"
-                  className="bg-[#043927] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#065a3a] transition"
+                  className="bg-gradient-to-r from-[#043927] to-[#065a3a] text-white px-5 py-2 rounded-lg text-sm font-medium hover:opacity-95 transition"
                 >
                   {variant === 'recruiter' ? 'Post a Job' : 'Get Started'}
                 </Link>
