@@ -9,6 +9,8 @@ interface BackendJob {
   title: string;
   type: string;
   company: string;
+  salary?: string;
+  imageUrl?: string;
   location?: string;
   description?: string;
   skills?: string[];
@@ -19,7 +21,12 @@ interface BackendJob {
     url: string;
   };
   status: 'open' | 'closed';
-  recruiter: string;
+  recruiter: string | {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -90,6 +97,34 @@ interface BackendResumeFolder {
   updatedAt: string;
 }
 
+interface BackendRecruiterPublicProfile {
+  recruiter: {
+    id: string;
+    fullName: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string;
+    company: string;
+    location: string;
+    totalActiveJobs: number;
+    totalApplicants: number;
+  };
+}
+
+export interface RecruiterPublicProfile {
+  id: string;
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  company: string;
+  location: string;
+  totalActiveJobs: number;
+  totalApplicants: number;
+}
+
 export interface RecruiterSavedResume {
   id: string;
   applicationId: string;
@@ -117,16 +152,33 @@ export interface RecruiterResumeFolder {
 
 // Map backend job to frontend Job type
 function mapBackendJob(backendJob: BackendJob): Job {
+  const recruiterId = typeof backendJob.recruiter === 'string'
+    ? backendJob.recruiter
+    : backendJob.recruiter?._id
+      ? String(backendJob.recruiter._id)
+      : '';
+  const recruiterName = typeof backendJob.recruiter === 'string'
+    ? ''
+    : `${backendJob.recruiter?.firstName || ''} ${backendJob.recruiter?.lastName || ''}`.trim();
+  const recruiterEmail = typeof backendJob.recruiter === 'string'
+    ? ''
+    : backendJob.recruiter?.email || '';
+
   return {
     id: backendJob._id,
     title: backendJob.title,
     job_type: backendJob.type.toUpperCase() as 'FULLTIME' | 'PARTTIME' | 'INTERNSHIP',
     company: backendJob.company || '',
-    salary: '',
+    salary: backendJob.salary || '',
+    image_url: backendJob.imageUrl || '',
+    status: backendJob.status || 'open',
     description: backendJob.description || '',
     requirements: backendJob.skills?.join(', ') || '',
     skills: backendJob.skills || [],
     location: backendJob.location || '',
+    recruiter_id: recruiterId,
+    recruiter_name: recruiterName,
+    recruiter_email: recruiterEmail,
     created_at: backendJob.createdAt,
   };
 }
@@ -202,10 +254,43 @@ export const jobStore = {
     }
   },
 
+  async getJobsByRecruiterId(recruiterId: string): Promise<Job[]> {
+    try {
+      const response = await apiClient.get<{ jobs: BackendJob[] }>(`/jobs/recruiter/${recruiterId}`);
+      return response.jobs.map(mapBackendJob);
+    } catch (error) {
+      console.error('Error fetching recruiter jobs:', error);
+      return [];
+    }
+  },
+
+  async getRecruiterPublicProfile(recruiterId: string): Promise<RecruiterPublicProfile | undefined> {
+    try {
+      const response = await apiClient.get<BackendRecruiterPublicProfile>(`/users/${recruiterId}/public`);
+      return {
+        id: response.recruiter.id,
+        fullName: response.recruiter.fullName,
+        firstName: response.recruiter.firstName,
+        lastName: response.recruiter.lastName,
+        email: response.recruiter.email,
+        phoneNumber: response.recruiter.phoneNumber,
+        company: response.recruiter.company,
+        location: response.recruiter.location,
+        totalActiveJobs: response.recruiter.totalActiveJobs,
+        totalApplicants: response.recruiter.totalApplicants,
+      };
+    } catch (error) {
+      console.error('Error fetching recruiter public profile:', error);
+      return undefined;
+    }
+  },
+
   async createJob(jobData: {
     title: string;
     type: string;
     company: string;
+    salary?: string;
+    imageUrl?: string;
     location?: string;
     description?: string;
     skills?: string[];
@@ -217,6 +302,8 @@ export const jobStore = {
         formData.append('title', jobData.title);
         formData.append('type', jobData.type);
         formData.append('company', jobData.company);
+        if (jobData.salary) formData.append('salary', jobData.salary);
+        if (jobData.imageUrl) formData.append('imageUrl', jobData.imageUrl);
         if (jobData.location) formData.append('location', jobData.location);
         if (jobData.description) formData.append('description', jobData.description);
         if (jobData.skills) formData.append('skills', jobData.skills.join(','));
@@ -229,6 +316,8 @@ export const jobStore = {
           title: jobData.title,
           type: jobData.type,
           company: jobData.company,
+          salary: jobData.salary,
+          imageUrl: jobData.imageUrl,
           location: jobData.location,
           description: jobData.description,
           skills: jobData.skills,
@@ -242,10 +331,24 @@ export const jobStore = {
   },
 
   async updateJob(id: string, updates: Partial<Job>): Promise<Job | undefined> {
-    // Note: Backend doesn't have update endpoint yet
-    // This would need to be implemented in the backend
-    console.warn('Job update not yet implemented in backend');
-    return undefined;
+    try {
+      const response = await apiClient.patch<{ job: BackendJob }>(`/jobs/${id}`, {
+        title: updates.title,
+        type: updates.job_type ? updates.job_type.toLowerCase() : undefined,
+        company: updates.company,
+        salary: updates.salary,
+        imageUrl: updates.image_url,
+        location: updates.location,
+        description: updates.description,
+        skills: updates.requirements
+          ? updates.requirements.split(',').map((item) => item.trim()).filter(Boolean)
+          : updates.skills,
+      });
+      return mapBackendJob(response.job);
+    } catch (error) {
+      console.error('Error updating job:', error);
+      throw error;
+    }
   },
 
   async deleteJob(id: string): Promise<boolean> {

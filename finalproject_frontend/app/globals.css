@@ -134,6 +134,14 @@ body::before {
   box-shadow: 0 16px 34px rgba(9, 43, 33, 0.12);
 }
 
+.surface-card-press {
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.surface-card-press:active {
+  transform: translateY(0) scale(0.995);
+}
+
 .hero-shell {
   border-radius: 1.35rem;
   border: 1px solid rgba(224, 236, 229, 0.35);
@@ -142,8 +150,47 @@ body::before {
   box-shadow: 0 22px 45px rgba(11, 53, 40, 0.28);
 }
 
+.landing-grid-pattern {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+.section-divider {
+  height: 1px;
+  margin: 0 auto;
+  max-width: 76rem;
+  background: linear-gradient(
+    90deg,
+    rgba(12, 64, 49, 0),
+    rgba(12, 64, 49, 0.26),
+    rgba(12, 64, 49, 0)
+  );
+}
+
+.float-card {
+  animation: floatUp 4.8s ease-in-out infinite;
+}
+
+.float-card.delay-200 {
+  animation-delay: 0.2s;
+}
+
+.float-card.delay-400 {
+  animation-delay: 0.4s;
+}
+
 .stagger-in {
   animation: riseIn 420ms ease both;
+}
+
+.fade-in {
+  animation: fadeIn 260ms ease both;
+}
+
+.fade-in-up {
+  animation: riseIn 360ms ease both;
 }
 
 @keyframes riseIn {
@@ -155,5 +202,26 @@ body::before {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes floatUp {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
   }
 }

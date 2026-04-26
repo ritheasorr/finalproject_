@@ -54,11 +54,9 @@ router.post('/', authMiddleware, ensureRecruiter, upload.single('attachment'), a
       title: req.body.title,
       type: req.body.type,
       company: req.body.company,
-      salary: req.body.salary,
       location: req.body.location,
       description: req.body.description,
       skills: skills,
-      imageUrl: req.body.imageUrl || req.body.image_url || '',
       recruiter: req.user.id
     };
 
@@ -99,26 +97,7 @@ router.get('/', authMiddleware, async function(req, res, next) {
       query.title = { $regex: req.query.title, $options: 'i' };
     }
 
-    const jobs = await Job.find(query)
-      .populate('recruiter', 'firstName lastName email')
-      .sort({ createdAt: -1 })
-      .lean();
-    res.json({ jobs: jobs });
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.get('/recruiter/:recruiterId', authMiddleware, async function(req, res, next) {
-  try {
-    const jobs = await Job.find({
-      recruiter: req.params.recruiterId,
-      status: 'open',
-    })
-      .populate('recruiter', 'firstName lastName email')
-      .sort({ createdAt: -1 })
-      .lean();
-
+    const jobs = await Job.find(query).sort({ createdAt: -1 }).lean();
     res.json({ jobs: jobs });
   } catch (err) {
     next(err);
@@ -127,19 +106,13 @@ router.get('/recruiter/:recruiterId', authMiddleware, async function(req, res, n
 
 router.get('/:id', authMiddleware, async function(req, res, next) {
   try {
-    const job = await Job.findById(req.params.id)
-      .populate('recruiter', 'firstName lastName email')
-      .lean();
+    const job = await Job.findById(req.params.id).lean();
     if (!job || job.status !== 'open') {
       return res.status(404).json({ error: 'Job not found' });
     }
     
     // Recruiters can only view their own jobs, candidates can view all
-    const recruiterId = typeof job.recruiter === 'object' && job.recruiter !== null
-      ? job.recruiter._id.toString()
-      : job.recruiter.toString();
-
-    if (req.user.role === 'recruiter' && recruiterId !== req.user.id) {
+    if (req.user.role === 'recruiter' && job.recruiter.toString() !== req.user.id) {
       return res.status(403).json({ error: 'Access denied' });
     }
     
@@ -174,46 +147,6 @@ router.delete('/:id', authMiddleware, ensureRecruiter, async function(req, res, 
     res.json({ success: true });
   } catch (err) {
     next(err);
-  }
-});
-
-router.patch('/:id', authMiddleware, ensureRecruiter, async function(req, res, next) {
-  try {
-    const job = await Job.findById(req.params.id);
-    if (!job) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
-
-    if (job.recruiter.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    const allowedFields = ['title', 'type', 'company', 'salary', 'location', 'description', 'status'];
-    allowedFields.forEach(function(field) {
-      if (typeof req.body[field] === 'string') {
-        job[field] = req.body[field].trim();
-      }
-    });
-
-    if (typeof req.body.imageUrl === 'string') {
-      job.imageUrl = req.body.imageUrl.trim();
-    } else if (typeof req.body.image_url === 'string') {
-      job.imageUrl = req.body.image_url.trim();
-    }
-
-    if (Array.isArray(req.body.skills)) {
-      job.skills = req.body.skills.map(function(item) { return String(item).trim(); }).filter(Boolean);
-    } else if (typeof req.body.skills === 'string') {
-      job.skills = req.body.skills
-        .split(',')
-        .map(function(item) { return item.trim(); })
-        .filter(Boolean);
-    }
-
-    await job.save();
-    return res.json({ job: job });
-  } catch (err) {
-    return next(err);
   }
 });
 

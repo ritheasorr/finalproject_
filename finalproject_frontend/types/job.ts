@@ -6,10 +6,15 @@ export interface Job {
   job_type: JobType;
   company: string;
   salary: string;
+  image_url?: string;
+  status?: 'open' | 'closed';
   description: string;
   requirements: string;
   skills: string[];
   location: string;
+  recruiter_id?: string;
+  recruiter_name?: string;
+  recruiter_email?: string;
   created_at: string;
 }
 

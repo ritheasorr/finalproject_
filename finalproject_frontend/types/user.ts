@@ -14,6 +14,24 @@ export interface JobSeekerProfile {
   education: string;
   skills: string;
   location: string;
+  professional_title?: string;
+  bio?: string;
+  experience?: string;
+  cover_image_url?: string;
+  avatar_url?: string;
+  linkedin_url?: string;
+}
+
+export interface RecruiterProfileMeta {
+  userId: string;
+  company: string;
+  location: string;
+  about: string;
+  title: string;
+  cover_image_url?: string;
+  avatar_url?: string;
+  website_url?: string;
+  linkedin_url?: string;
 }
 
 export interface Resume {

@@ -1,7 +1,7 @@
 'use client';
 
 import { apiClient } from '../lib/api';
-import { User, JobSeekerProfile, Resume } from '../types/user';
+import { User, JobSeekerProfile, RecruiterProfileMeta, Resume } from '../types/user';
 
 const CURRENT_USER_KEY = 'careerlaunch_current_user';
 
@@ -175,6 +175,12 @@ export const authStore = {
         education: updates.education || '',
         skills: updates.skills || '',
         location: updates.location || '',
+        professional_title: updates.professional_title || '',
+        bio: updates.bio || '',
+        experience: updates.experience || '',
+        cover_image_url: updates.cover_image_url || '',
+        avatar_url: updates.avatar_url || '',
+        linkedin_url: updates.linkedin_url || '',
       };
       profiles.push(newProfile);
       localStorage.setItem('careerlaunch_jobseeker_profiles', JSON.stringify(profiles));
@@ -183,6 +189,44 @@ export const authStore = {
     
     profiles[index] = { ...profiles[index], ...updates };
     localStorage.setItem('careerlaunch_jobseeker_profiles', JSON.stringify(profiles));
+    return profiles[index];
+  },
+
+  getAllRecruiterProfileMeta(): RecruiterProfileMeta[] {
+    if (typeof window === 'undefined') return [];
+    const profiles = localStorage.getItem('careerlaunch_recruiter_profiles');
+    return profiles ? JSON.parse(profiles) : [];
+  },
+
+  getRecruiterProfileMeta(userId: string): RecruiterProfileMeta | undefined {
+    const profiles = this.getAllRecruiterProfileMeta();
+    return profiles.find((profile) => profile.userId === userId);
+  },
+
+  updateRecruiterProfileMeta(userId: string, updates: Partial<RecruiterProfileMeta>): RecruiterProfileMeta | undefined {
+    if (typeof window === 'undefined') return undefined;
+    const profiles = this.getAllRecruiterProfileMeta();
+    const index = profiles.findIndex((profile) => profile.userId === userId);
+
+    if (index === -1) {
+      const newProfile: RecruiterProfileMeta = {
+        userId,
+        company: updates.company || '',
+        location: updates.location || '',
+        about: updates.about || '',
+        title: updates.title || '',
+        cover_image_url: updates.cover_image_url || '',
+        avatar_url: updates.avatar_url || '',
+        website_url: updates.website_url || '',
+        linkedin_url: updates.linkedin_url || '',
+      };
+      profiles.push(newProfile);
+      localStorage.setItem('careerlaunch_recruiter_profiles', JSON.stringify(profiles));
+      return newProfile;
+    }
+
+    profiles[index] = { ...profiles[index], ...updates };
+    localStorage.setItem('careerlaunch_recruiter_profiles', JSON.stringify(profiles));
     return profiles[index];
   },
 

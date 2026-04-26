@@ -2,17 +2,19 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { authStore } from '@/store/authStore';
 import { User } from '@/types/user';
 import { LogOut, User as UserIcon, LayoutDashboard, ChevronDown } from 'lucide-react';
 
 interface NavigationProps {
   variant?: 'default' | 'jobseeker' | 'recruiter';
+  links?: { label: string; href: string }[];
 }
 
-export default function Navigation({ variant = 'default' }: NavigationProps) {
+export default function Navigation({ variant = 'default', links = [] }: NavigationProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -50,6 +52,13 @@ export default function Navigation({ variant = 'default' }: NavigationProps) {
     router.push('/');
   };
 
+  const navItemClass = (href: string) =>
+    `px-3 py-2 rounded-lg text-sm font-medium transition ${
+      pathname.startsWith(href)
+        ? 'bg-[#043927]/10 text-[#043927]'
+        : 'text-gray-600 hover:text-[#043927] hover:bg-gray-50'
+    }`;
+
   return (
     <nav className="sticky top-0 z-40 border-b border-[#0f4d3a]/10 bg-white/85 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -61,19 +70,33 @@ export default function Navigation({ variant = 'default' }: NavigationProps) {
 
           {/* Right: Nav links + Auth/Profile */}
           <div className="flex items-center gap-1">
+            {links.length > 0 && (
+              <div className="hidden lg:flex items-center gap-1 mr-2">
+                {links.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-[#043927] hover:bg-gray-50 transition"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+
             {variant === 'jobseeker' && currentUser?.role === 'jobseeker' && (
               <>
-                <Link href="/jobseeker/dashboard" className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-[#043927] hover:bg-gray-50 transition">
+                <Link href="/jobseeker/dashboard" className={navItemClass('/jobseeker/dashboard')}>
                   Dashboard
                 </Link>
-                <Link href="/jobseeker/jobs" className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-[#043927] hover:bg-gray-50 transition">
+                <Link href="/jobseeker/jobs" className={navItemClass('/jobseeker/jobs')}>
                   Find Jobs
                 </Link>
               </>
             )}
 
             {variant === 'recruiter' && currentUser?.role === 'recruiter' && (
-              <Link href="/recruiter/dashboard" className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-[#043927] hover:bg-gray-50 transition">
+              <Link href="/recruiter/dashboard" className={navItemClass('/recruiter/dashboard')}>
                 Dashboard
               </Link>
             )}

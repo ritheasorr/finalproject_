@@ -4,9 +4,11 @@ const JobSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   type: { type: String, required: true, trim: true },
   company: { type: String, required: true, trim: true },
+  salary: { type: String, trim: true },
   location: { type: String, trim: true },
   description: { type: String, trim: true },
   skills: [{ type: String, trim: true }],
+  imageUrl: { type: String, trim: true },
   attachment: {
     originalName: { type: String, trim: true },
     mimeType: { type: String, trim: true },

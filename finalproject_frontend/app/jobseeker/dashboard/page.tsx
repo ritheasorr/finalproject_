@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, FileText, Briefcase, Upload, Building2, Clock, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
+import { Briefcase, Upload, Building2, Clock, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 import { authStore } from '@/store/authStore';
 import { applicationStore } from '@/store/applicationStore';
 import { Application } from '@/types/job';
 import { PageShell } from '@/components/ui/page-shell';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function JobSeekerDashboard() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function JobSeekerDashboard() {
     loadData(currentUser);
   }, [router]);
 
-  const loadData = async (userData: any) => {
+  const loadData = async (userData: { id: string; full_name: string }) => {
     if (!userData) return;
     
     let profile = authStore.getJobSeekerProfile(userData.id);
@@ -77,7 +78,15 @@ export default function JobSeekerDashboard() {
   if (!mounted || !user || !profile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-pulse text-gray-400">Loading...</div>
+        <div className="w-full max-w-6xl px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+          </div>
+          <Skeleton className="h-80" />
+        </div>
       </div>
     );
   }
@@ -98,7 +107,7 @@ export default function JobSeekerDashboard() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="surface-card surface-card-hover p-5">
+          <button onClick={() => router.push('/jobseeker/dashboard')} className="surface-card surface-card-hover surface-card-press p-5 text-left">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-[#043927]/10 flex items-center justify-center">
                 <Briefcase className="w-5 h-5 text-[#043927]" />
@@ -108,8 +117,8 @@ export default function JobSeekerDashboard() {
                 <div className="text-xs text-gray-500">Applications</div>
               </div>
             </div>
-          </div>
-          <div className="surface-card surface-card-hover p-5">
+          </button>
+          <button onClick={() => router.push('/jobseeker/dashboard')} className="surface-card surface-card-hover surface-card-press p-5 text-left">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
                 <Clock className="w-5 h-5 text-amber-600" />
@@ -119,8 +128,8 @@ export default function JobSeekerDashboard() {
                 <div className="text-xs text-gray-500">Pending</div>
               </div>
             </div>
-          </div>
-          <div className="surface-card surface-card-hover p-5">
+          </button>
+          <button onClick={() => router.push('/jobseeker/dashboard')} className="surface-card surface-card-hover surface-card-press p-5 text-left">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-emerald-600" />
@@ -130,8 +139,8 @@ export default function JobSeekerDashboard() {
                 <div className="text-xs text-gray-500">Accepted</div>
               </div>
             </div>
-          </div>
-          <div className="surface-card surface-card-hover p-5">
+          </button>
+          <button onClick={() => router.push('/jobseeker/profile')} className="surface-card surface-card-hover surface-card-press p-5 text-left">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
                 <Upload className="w-5 h-5 text-violet-600" />
@@ -141,7 +150,7 @@ export default function JobSeekerDashboard() {
                 <div className="text-xs text-gray-500">Resumes</div>
               </div>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Quick Actions */}
@@ -197,7 +206,7 @@ export default function JobSeekerDashboard() {
           ) : (
             <div className="divide-y divide-gray-100">
               {applications.slice(0, 10).map((app) => (
-                <div key={app.id} className="px-6 py-4 hover:bg-gray-50/50 transition">
+                <div key={app.id} className="px-6 py-4 hover:bg-gray-50/50 transition cursor-pointer" onClick={() => router.push('/jobseeker/jobs')}>
                   <div className="flex items-center gap-4">
                     {/* Company Icon */}
                     <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">

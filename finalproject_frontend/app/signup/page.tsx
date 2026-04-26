@@ -1,12 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authStore } from '@/store/authStore';
 
 export default function SignupPage() {
-  const router = useRouter();
   const [userType, setUserType] = useState<'jobseeker' | 'recruiter'>('jobseeker');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -17,23 +15,28 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsSubmitting(true);
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
+      setIsSubmitting(false);
       return;
     }
 
     if (!agreeToTerms) {
       setError('You must agree to the Terms of Service and Privacy Policy');
+      setIsSubmitting(false);
       return;
     }
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
+      setIsSubmitting(false);
       return;
     }
 
@@ -46,8 +49,9 @@ export default function SignupPage() {
       } else {
         window.location.href = '/recruiter/dashboard';
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during signup');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred during signup');
+      setIsSubmitting(false);
     }
   };
 
@@ -197,9 +201,10 @@ export default function SignupPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-[#043927] text-white py-3 rounded-lg hover:bg-[#065a3a] transition font-medium"
+              disabled={isSubmitting}
+              className="w-full bg-[#043927] text-white py-3 rounded-lg hover:bg-[#065a3a] transition font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Create Account
+              {isSubmitting ? 'Creating Account...' : 'Create Account'}
             </button>
 
             {/* Sign In Link */}

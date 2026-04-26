@@ -1,28 +1,29 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authStore } from '@/store/authStore';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [userType, setUserType] = useState<'jobseeker' | 'recruiter'>('jobseeker');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsSubmitting(true);
 
     try {
       const user = await authStore.login(email, password);
       
       if (user.role !== userType) {
         setError(`This account is registered as a ${user.role}. Please select the correct account type.`);
+        setIsSubmitting(false);
         return;
       }
 
@@ -32,8 +33,9 @@ export default function LoginPage() {
       } else {
         window.location.href = '/recruiter/dashboard';
       }
-    } catch (err: any) {
-      setError(err.message || 'Invalid email or password');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Invalid email or password');
+      setIsSubmitting(false);
     }
   };
 
@@ -138,9 +140,10 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-[#043927] text-white py-3 rounded-lg hover:bg-[#065a3a] transition font-medium"
+              disabled={isSubmitting}
+              className="w-full bg-[#043927] text-white py-3 rounded-lg hover:bg-[#065a3a] transition font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Sign In
+              {isSubmitting ? 'Signing In...' : 'Sign In'}
             </button>
 
             {/* Sign Up Link */}
