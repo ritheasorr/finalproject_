@@ -10,10 +10,7 @@ import {
   Bar,
   BarChart,
   Cell,
-  Funnel,
-  FunnelChart,
   Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -44,11 +41,6 @@ import { jobStore } from '@/store/jobStore';
 import { API_BASE_URL, apiClient } from '@/lib/api';
 import { Job } from '@/types/job';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  fallbackInsights,
-  generateMockPerformance,
-  generateSparkline,
-} from './mockDashboardData';
 
 type BackendApplicationStatus = 'submitted' | 'reviewing' | 'interview' | 'rejected' | 'hired';
 type PipelineStage = 'New' | 'Screening' | 'Shortlisted' | 'Interview' | 'Hired' | 'Rejected';
@@ -64,6 +56,9 @@ interface BackendReceivedApplication {
     email: string;
     phoneNumber?: string;
     school?: string;
+    avatarUrl?: string;
+    avatar_url?: string;
+    profileImageUrl?: string;
   };
   job: {
     _id: string;
@@ -84,6 +79,8 @@ interface BackendReceivedApplication {
 
 interface DashboardApplicant {
   id: string;
+  candidateId: string;
+  candidateAvatarUrl: string;
   name: string;
   email: string;
   phone: string;
@@ -107,40 +104,6 @@ function getInitials(name: string): string {
     .join('')
     .slice(0, 2)
     .toUpperCase();
-}
-
-function percentChange(current: number, previous: number): number {
-  if (previous === 0) {
-    return current === 0 ? 0 : 100;
-  }
-  return Number((((current - previous) / previous) * 100).toFixed(1));
-}
-
-function MiniSparkline({ data, color }: { data: number[]; color: string }) {
-  if (data.length === 0) return null;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-  const points = data
-    .map((v, i) => {
-      const x = (i / (data.length - 1 || 1)) * 100;
-      const y = 100 - ((v - min) / range) * 100;
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  return (
-    <svg viewBox="0 0 100 100" className="w-full h-10">
-      <polyline
-        fill="none"
-        stroke={color}
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-    </svg>
-  );
 }
 
 export default function RecruiterDashboardPage() {
@@ -171,12 +134,14 @@ export default function RecruiterDashboardPage() {
     setLoading(true);
     try {
       const [jobList, receivedResponse] = await Promise.all([
-        jobStore.getAllJobs(),
+        jobStore.getJobsByRecruiterId(user.id),
         apiClient.get<{ applications: BackendReceivedApplication[] }>('/applications/received'),
       ]);
 
       const mappedApps: DashboardApplicant[] = (receivedResponse.applications || []).map((app) => ({
         id: app._id,
+        candidateId: app.candidate._id,
+        candidateAvatarUrl: app.candidate.avatarUrl || app.candidate.avatar_url || app.candidate.profileImageUrl || '',
         name: `${app.candidate.firstName} ${app.candidate.lastName}`.trim(),
         email: app.candidate.email || '',
         phone: app.candidate.phoneNumber || '',
@@ -256,30 +221,11 @@ export default function RecruiterDashboardPage() {
     }).length;
     const interview = filteredApplicants.filter((a) => stageByAppId.get(a.id) === 'Interview').length;
 
-    const now = new Date();
-    const recent = filteredApplicants.filter((a) => {
-      const d = new Date(a.appliedAt);
-      return now.getTime() - d.getTime() <= 30 * 24 * 60 * 60 * 1000;
-    }).length;
-    const previous = filteredApplicants.filter((a) => {
-      const d = new Date(a.appliedAt);
-      const diff = now.getTime() - d.getTime();
-      return diff > 30 * 24 * 60 * 60 * 1000 && diff <= 60 * 24 * 60 * 60 * 1000;
-    }).length;
-
-    const baseChange = percentChange(recent, previous);
-
     return {
       total,
       shortlisted,
       pending,
       interview,
-      changes: {
-        total: baseChange,
-        shortlisted: baseChange - 6,
-        interview: baseChange + 9,
-        openJobs: baseChange + 2,
-      },
     };
   }, [filteredApplicants, stageByAppId]);
 
@@ -320,6 +266,14 @@ export default function RecruiterDashboardPage() {
     });
     return pipelineColumns.map((stage) => ({ value: byStage[stage], name: stage }));
   }, [filteredApplicants, stageByAppId]);
+
+  const hiringFunnelChartData = useMemo(() => {
+    const baseline = funnelData[0]?.value || 0;
+    return funnelData.map((entry) => ({
+      ...entry,
+      conversion: baseline > 0 ? Math.round((entry.value / baseline) * 100) : 0,
+    }));
+  }, [funnelData]);
 
   const monthlyTrendData = useMemo(() => {
     const now = new Date();
@@ -364,22 +318,36 @@ export default function RecruiterDashboardPage() {
     return grouped;
   }, [filteredApplicants, stageByAppId]);
 
-  const jobPerformance = useMemo(() => {
-    const appCountByJob = new Map<string, number>();
+  const applicantAvatarById = useMemo(() => {
+    const map = new Map<string, string>();
     filteredApplicants.forEach((app) => {
-      appCountByJob.set(app.jobId, (appCountByJob.get(app.jobId) || 0) + 1);
+      const avatarUrl =
+        app.candidateAvatarUrl ||
+        (app.candidateId ? authStore.getJobSeekerProfile(app.candidateId)?.avatar_url || '' : '');
+      if (avatarUrl) {
+        map.set(app.id, avatarUrl);
+      }
     });
+    return map;
+  }, [filteredApplicants]);
 
-    return jobs.map((job, idx) => {
-      const applicationsCount = appCountByJob.get(job.id) || 0;
-      const mockPerf = generateMockPerformance(applicationsCount, idx + 3);
+  const jobPerformance = useMemo(() => {
+    return jobs.map((job) => {
+      const jobApps = filteredApplicants.filter((app) => app.jobId === job.id);
+      const applicationsCount = jobApps.length;
+      const highScore = jobApps.filter((app) => app.aiScore >= 85).length;
+      const avgScore =
+        applicationsCount > 0
+          ? Math.round(jobApps.reduce((sum, app) => sum + app.aiScore, 0) / applicationsCount)
+          : 0;
+      const conversion = applicationsCount > 0 ? Math.round((highScore / applicationsCount) * 100) : 0;
       return {
         id: job.id,
         title: job.title,
         applications: applicationsCount,
-        views: mockPerf.views,
-        conversion: mockPerf.conversionRate,
-        trend: mockPerf.trend,
+        highScore,
+        averageScore: avgScore,
+        conversion,
       };
     });
   }, [filteredApplicants, jobs]);
@@ -417,6 +385,8 @@ export default function RecruiterDashboardPage() {
       });
   }, [jobs, applications]);
 
+  const quickListedJobs = useMemo(() => postedJobs.slice(0, 6), [postedJobs]);
+
   const aiInsights = useMemo(() => {
     const insights: string[] = [];
     const highestApplicantJob = [...applicantsByJobData].sort((a, b) => b.count - a.count)[0];
@@ -428,7 +398,7 @@ export default function RecruiterDashboardPage() {
     insights.push(`${highScoreCount} candidates scored above 85% AI match.`);
 
     const lowConversion = [...jobPerformance]
-      .filter((job) => job.views > 0 && job.conversion < 4)
+      .filter((job) => job.applications > 0 && job.conversion < 4)
       .sort((a, b) => a.conversion - b.conversion)[0];
     if (lowConversion) {
       insights.push(`${lowConversion.title} has low conversion (${lowConversion.conversion}%). Consider updating role details.`);
@@ -438,7 +408,7 @@ export default function RecruiterDashboardPage() {
       insights.push(`Review ${stats.pending} pending candidates before upcoming interview deadlines.`);
     }
 
-    return insights.length > 0 ? insights : fallbackInsights;
+    return insights.length > 0 ? insights : ['Not enough recent application data for deeper insight yet.'];
   }, [applicantsByJobData, filteredApplicants, jobPerformance, stats.pending]);
 
   const handleToggleShortlist = (applicationId: string) => {
@@ -505,38 +475,26 @@ export default function RecruiterDashboardPage() {
     {
       label: 'Total Applicants',
       value: stats.total,
-      change: stats.changes.total,
       icon: Users,
       tone: 'text-blue-700 bg-blue-50 border-blue-100',
-      sparkline: generateSparkline(stats.total + 5),
-      sparkColor: '#2563eb',
     },
     {
       label: 'Strong Matches',
       value: stats.shortlisted,
-      change: stats.changes.shortlisted,
       icon: UserRoundCheck,
       tone: 'text-emerald-700 bg-emerald-50 border-emerald-100',
-      sparkline: generateSparkline(stats.shortlisted + 12),
-      sparkColor: '#047857',
     },
     {
       label: 'Interviews Scheduled',
       value: stats.interview,
-      change: stats.changes.interview,
       icon: CalendarClock,
       tone: 'text-amber-700 bg-amber-50 border-amber-100',
-      sparkline: generateSparkline(stats.interview + 18),
-      sparkColor: '#b45309',
     },
     {
       label: 'Open Jobs',
       value: openJobs,
-      change: stats.changes.openJobs,
       icon: BriefcaseBusiness,
       tone: 'text-slate-700 bg-slate-50 border-slate-200',
-      sparkline: generateSparkline(openJobs + 20),
-      sparkColor: '#334155',
     },
   ];
 
@@ -674,16 +632,10 @@ export default function RecruiterDashboardPage() {
                   <div>
                     <p className="text-xs uppercase tracking-wide text-gray-500">{kpi.label}</p>
                     <p className="text-3xl font-bold text-gray-900 mt-1">{kpi.value}</p>
-                    <p className={`text-xs font-medium mt-1 ${kpi.change >= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
-                      {kpi.change >= 0 ? '+' : ''}{kpi.change}% vs previous period
-                    </p>
                   </div>
                   <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${kpi.tone}`}>
                     <Icon className="w-5 h-5" />
                   </div>
-                </div>
-                <div className="mt-2">
-                  <MiniSparkline data={kpi.sparkline} color={kpi.sparkColor} />
                 </div>
               </div>
             );
@@ -718,16 +670,16 @@ export default function RecruiterDashboardPage() {
               })}
             </div>
 
-            <div className="h-56 mt-4 rounded-xl border border-gray-100 bg-white p-2">
+            <div className="h-72 mt-4 rounded-xl border border-gray-100 bg-white p-3">
               <ResponsiveContainer width="100%" height="100%">
-                <FunnelChart>
+                <BarChart data={hiringFunnelChartData} margin={{ top: 10, right: 18, left: 8, bottom: 0 }}>
+                  <XAxis dataKey="name" stroke="#6b7280" tickLine={false} axisLine={false} />
+                  <YAxis yAxisId="left" stroke="#6b7280" allowDecimals={false} tickLine={false} axisLine={false} />
+                  <YAxis yAxisId="right" orientation="right" allowDecimals={false} domain={[0, 100]} hide />
                   <RechartsTooltip />
-                  <Funnel dataKey="value" data={funnelData} isAnimationActive>
-                    {funnelData.map((entry, idx) => (
-                      <Cell key={entry.name} fill={`hsl(149, 35%, ${35 + idx * 7}%)`} />
-                    ))}
-                  </Funnel>
-                </FunnelChart>
+                  <Bar yAxisId="left" dataKey="value" name="Candidates" radius={[8, 8, 0, 0]} fill="#2d8a62" />
+                  <Line yAxisId="right" type="monotone" dataKey="conversion" name="Conversion %" stroke="#0f5d43" strokeWidth={2.5} dot={{ r: 3 }} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -759,6 +711,62 @@ export default function RecruiterDashboardPage() {
 
         <section className="surface-card rounded-2xl p-4 sm:p-5">
           <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">My Listed Jobs</h2>
+              <p className="text-xs text-gray-500 mt-1">Fast access to manage role details and review applications.</p>
+            </div>
+            <span className="text-xs text-gray-500">{postedJobs.length} total jobs</span>
+          </div>
+
+          {quickListedJobs.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 p-6 text-center">
+              <p className="font-medium text-gray-700">No jobs listed yet</p>
+              <Link href="/recruiter/jobs/new" className="mt-3 inline-flex items-center gap-1 text-sm text-[#0f5d43] font-medium hover:underline">
+                Post your first job
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {quickListedJobs.map((job) => (
+                <div key={job.id} className="rounded-xl border border-gray-100 bg-white p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-gray-900 text-sm">{job.title}</p>
+                    <span className={`text-[11px] px-2 py-1 rounded-full border ${job.status === 'closed' ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                      {(job.status || 'open').toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{job.company}{job.location ? ` - ${job.location}` : ''}</p>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                    <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center">
+                      <p className="text-gray-500">Applicants</p>
+                      <p className="font-semibold text-gray-900">{job.applications}</p>
+                    </div>
+                    <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center">
+                      <p className="text-gray-500">85+ Score</p>
+                      <p className="font-semibold text-gray-900">{job.highScore}</p>
+                    </div>
+                    <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center">
+                      <p className="text-gray-500">Avg Score</p>
+                      <p className="font-semibold text-gray-900">{job.averageScore}%</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <Link href={`/recruiter/jobs/${job.id}/edit`} className="inline-flex items-center justify-center rounded-lg border border-[#0f5d43]/20 text-[#0f5d43] px-3 py-2 text-xs font-medium hover:bg-[#edf7f1] transition">
+                      Job Details
+                    </Link>
+                    <Link href={`/recruiter/jobs/${job.id}/applications`} className="inline-flex items-center justify-center rounded-lg bg-[#0f5d43] text-white px-3 py-2 text-xs font-medium hover:bg-[#0b4f39] transition">
+                      Applications
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="surface-card rounded-2xl p-4 sm:p-5">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-900">Recent Applicants</h2>
             <span className="text-xs text-gray-500">Who needs action?</span>
           </div>
@@ -785,6 +793,7 @@ export default function RecruiterDashboardPage() {
                 <tbody>
                   {filteredApplicants.slice(0, 20).map((app) => {
                     const stage = stageByAppId.get(app.id) || 'New';
+                    const candidateAvatar = applicantAvatarById.get(app.id) || '';
                     const rejecting = rejectingIds.has(app.id);
                     const statusTone = stage === 'Rejected'
                       ? 'text-red-700 bg-red-50 border-red-200'
@@ -799,8 +808,16 @@ export default function RecruiterDashboardPage() {
                       <tr key={app.id} className="border-b border-gray-100 hover:bg-gray-50/70 transition">
                         <td className="py-3 pr-3">
                           <div className="flex items-center gap-2">
-                            <div className="w-9 h-9 rounded-full bg-[#e6f4ec] text-[#0f5d43] flex items-center justify-center text-xs font-semibold">
-                              {getInitials(app.name)}
+                            <div className="w-9 h-9 rounded-full bg-[#e6f4ec] text-[#0f5d43] flex items-center justify-center text-xs font-semibold overflow-hidden">
+                              {candidateAvatar ? (
+                                <img
+                                  src={candidateAvatar}
+                                  alt={app.name || 'Candidate'}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                getInitials(app.name)
+                              )}
                             </div>
                             <div>
                               <p className="font-medium text-gray-900">{app.name}</p>
@@ -949,7 +966,7 @@ export default function RecruiterDashboardPage() {
               </div>
             </section>
 
-            <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <section className="grid grid-cols-1 gap-4">
               <div className="rounded-xl border border-gray-100 p-4 bg-white">
                 <h3 className="font-semibold text-gray-900 mb-3">Top job post performance</h3>
                 <div className="space-y-2">
@@ -962,12 +979,12 @@ export default function RecruiterDashboardPage() {
                           <p className="font-medium text-sm text-gray-900 truncate">{job.title}</p>
                           <span className="text-xs text-[#0f5d43] font-semibold">{job.conversion}% conversion</span>
                         </div>
-                        <div className="grid grid-cols-3 gap-2 mt-2 text-xs text-gray-600">
-                          <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center"><p>Views</p><p className="font-semibold text-gray-900">{job.views}</p></div>
+                        <div className="grid grid-cols-4 gap-2 mt-2 text-xs text-gray-600">
                           <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center"><p>Apps</p><p className="font-semibold text-gray-900">{job.applications}</p></div>
+                          <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center"><p>85+ Score</p><p className="font-semibold text-gray-900">{job.highScore}</p></div>
+                          <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center"><p>Avg Score</p><p className="font-semibold text-gray-900">{job.averageScore}%</p></div>
                           <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center"><p>Conv.</p><p className="font-semibold text-gray-900">{job.conversion}%</p></div>
                         </div>
-                        <div className="mt-2"><MiniSparkline data={job.trend} color="#2d8a62" /></div>
                         <Link href={`/recruiter/jobs/${job.id}/applications`} className="mt-1 inline-flex items-center gap-1 text-xs text-[#0f5d43] hover:underline">
                           View job details
                           <ArrowRight className="w-3.5 h-3.5" />
@@ -978,21 +995,6 @@ export default function RecruiterDashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-gray-100 p-4 bg-white">
-                <h3 className="font-semibold text-gray-900 mb-3">Applications vs views trend</h3>
-                <div className="h-[340px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={topPerformingJobs}>
-                      <XAxis dataKey="title" hide />
-                      <YAxis yAxisId="left" stroke="#6b7280" />
-                      <YAxis yAxisId="right" orientation="right" stroke="#6b7280" />
-                      <RechartsTooltip />
-                      <Line yAxisId="left" type="monotone" dataKey="views" stroke="#88bca1" strokeWidth={2} />
-                      <Line yAxisId="right" type="monotone" dataKey="applications" stroke="#2d8a62" strokeWidth={2.5} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
             </section>
 
             <section className="rounded-xl border border-gray-100 p-4 bg-white">

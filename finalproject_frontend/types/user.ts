@@ -14,6 +14,7 @@ export interface User {
   full_name: string;
   role: UserRole;
   created_at: string;
+  avatar_url?: string;
 }
 
 export interface JobSeekerProfile {

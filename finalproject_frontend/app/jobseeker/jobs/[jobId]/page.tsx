@@ -25,6 +25,7 @@ export default function JobDetailsAndApplyPage() {
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeSource, setResumeSource] = useState<'vault' | 'upload'>('vault');
+  const [saveResumeForFuture, setSaveResumeForFuture] = useState(false);
   const [vaultResume, setVaultResume] = useState<{
     resumeUrl: string;
     resumeFilename: string;
@@ -41,6 +42,7 @@ export default function JobDetailsAndApplyPage() {
     recruiterName: string;
     companyName: string;
     location: string;
+    avatarUrl?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -68,12 +70,14 @@ export default function JobDetailsAndApplyPage() {
 
     if (jobData.recruiter_id) {
       const recruiterProfile = await jobStore.getRecruiterPublicProfile(jobData.recruiter_id);
+      const recruiterAvatar = authStore.getRecruiterProfileMeta(jobData.recruiter_id)?.avatar_url || '';
       if (recruiterProfile) {
         setRecruiterCardData({
           recruiterId: recruiterProfile.id,
           recruiterName: recruiterProfile.fullName || jobData.recruiter_name || 'Recruiter',
           companyName: recruiterProfile.company || jobData.company,
           location: recruiterProfile.location || jobData.location || '',
+          avatarUrl: recruiterAvatar,
         });
       } else {
         setRecruiterCardData({
@@ -81,6 +85,7 @@ export default function JobDetailsAndApplyPage() {
           recruiterName: jobData.recruiter_name || 'Recruiter',
           companyName: jobData.company,
           location: jobData.location || '',
+          avatarUrl: recruiterAvatar,
         });
       }
     }
@@ -140,11 +145,26 @@ export default function JobDetailsAndApplyPage() {
     setIsSubmitting(true);
 
     try {
+      let effectiveResumeSource: 'vault' | 'upload' = resumeSource;
+      let effectiveResumeFile: File | undefined = resumeSource === 'upload' ? (resumeFile || undefined) : undefined;
+
+      if (resumeSource === 'upload' && saveResumeForFuture && resumeFile) {
+        await authStore.uploadResumeToVault(resumeFile);
+        try {
+          const updatedVault = await authStore.getResumeVault();
+          setVaultResume(updatedVault);
+        } catch {
+          // Continue with vault source even if post-upload fetch fails.
+        }
+        effectiveResumeSource = 'vault';
+        effectiveResumeFile = undefined;
+      }
+
       await applicationStore.createApplication(
         jobId,
         coverLetter,
-        resumeSource === 'upload' ? (resumeFile || undefined) : undefined,
-        { resumeSource: resumeSource }
+        effectiveResumeFile,
+        { resumeSource: effectiveResumeSource }
       );
       toast.success('Application submitted successfully');
       router.push('/jobseeker/dashboard');
@@ -333,13 +353,21 @@ export default function JobDetailsAndApplyPage() {
                       <p className="text-sm font-medium text-gray-900">Upload New Resume for This Application</p>
                       <p className="text-xs text-gray-500 mt-1">This file will be used only for this job application.</p>
                       {resumeSource === 'upload' && (
-                        <div className="mt-2">
+                        <div className="mt-2 space-y-2">
                           <input
                             type="file"
                             accept=".pdf,.txt,application/pdf,text/plain"
                             onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
                             className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#043927]/20 focus:border-[#043927] bg-white"
                           />
+                          <label className="flex items-center gap-2 text-xs text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={saveResumeForFuture}
+                              onChange={(e) => setSaveResumeForFuture(e.target.checked)}
+                            />
+                            Save this uploaded resume to Resume Vault for future applications
+                          </label>
                         </div>
                       )}
                     </div>
@@ -392,6 +420,7 @@ export default function JobDetailsAndApplyPage() {
               recruiterName={recruiterCardData.recruiterName}
               companyName={recruiterCardData.companyName}
               location={recruiterCardData.location}
+              avatarUrl={recruiterCardData.avatarUrl}
             />
           ) : null}
 

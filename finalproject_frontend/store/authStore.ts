@@ -14,6 +14,7 @@ interface AuthResponse {
     email: string;
     phoneNumber?: string;
     school?: string;
+    avatarUrl?: string;
     role: 'candidate' | 'recruiter';
   };
   accessToken: string;
@@ -78,6 +79,7 @@ function mapBackendUser(backendUser: AuthResponse['user']): User {
     full_name: `${backendUser.firstName} ${backendUser.lastName}`,
     role: backendUser.role === 'candidate' ? 'jobseeker' : 'recruiter',
     created_at: new Date().toISOString(),
+    avatar_url: backendUser.avatarUrl || '',
   };
 }
 
@@ -187,6 +189,7 @@ export const authStore = {
         full_name: `${response.user.firstName || ''} ${response.user.lastName || ''}`.trim() || response.user.email.split('@')[0],
         role: response.user.role === 'candidate' ? 'jobseeker' : 'recruiter',
         created_at: new Date().toISOString(),
+        avatar_url: response.user.avatarUrl || '',
       };
       this.setCurrentUser(user);
       return user;
@@ -237,6 +240,7 @@ export const authStore = {
         full_name: `${response.user.firstName || ''} ${response.user.lastName || ''}`.trim() || response.user.email.split('@')[0],
         role: response.user.role === 'candidate' ? 'jobseeker' : 'recruiter',
         created_at: new Date().toISOString(),
+        avatar_url: response.user.avatarUrl || '',
       };
       this.setCurrentUser(user);
       return user;

@@ -13,6 +13,9 @@ interface BackendApplication {
     email: string;
     phoneNumber?: string;
     school?: string;
+    avatarUrl?: string;
+    avatar_url?: string;
+    profileImageUrl?: string;
   };
   job: string | {
     _id: string;
@@ -45,6 +48,10 @@ function mapBackendApplication(backendApp: BackendApplication): Application {
   const candidate = typeof backendApp.candidate === 'string' 
     ? { firstName: 'Unknown', lastName: '', email: '' } 
     : backendApp.candidate;
+  const candidateAvatar =
+    typeof backendApp.candidate === 'string'
+      ? ''
+      : (candidate.avatarUrl || candidate.avatar_url || candidate.profileImageUrl || '');
   
   const job = typeof backendApp.job === 'string'
     ? { _id: backendApp.job, title: '', company: '', type: '', location: '', status: '' }
@@ -52,6 +59,8 @@ function mapBackendApplication(backendApp: BackendApplication): Application {
 
   return {
     id: backendApp._id,
+    candidate_id: typeof backendApp.candidate === 'string' ? '' : candidate._id,
+    candidate_avatar_url: candidateAvatar,
     job_id: typeof backendApp.job === 'string' ? backendApp.job : job._id,
     job_title: typeof backendApp.job === 'string' ? '' : (backendApp.job.title || ''),
     job_company: typeof backendApp.job === 'string' ? '' : (backendApp.job.company || ''),

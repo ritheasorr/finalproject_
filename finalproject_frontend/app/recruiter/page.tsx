@@ -96,26 +96,32 @@ const whyChooseUs = [
   },
 ];
 
-const stats = [
-  { value: '68%', label: 'faster initial screening' },
-  { value: '12k+', label: 'candidate profiles analyzed' },
-  { value: '3.2x', label: 'shortlist efficiency gain' },
-  { value: '97%', label: 'recruiter satisfaction score' },
+const workflowHighlights = [
+  {
+    title: 'Structured Screening',
+    description: 'Use one clear review flow so every candidate is evaluated consistently.',
+  },
+  {
+    title: 'Shared Team Signals',
+    description: 'Keep notes, tags, and candidate context visible for everyone involved.',
+  },
+  {
+    title: 'Role-Fit Prioritization',
+    description: 'Bring the most relevant applications to the top for faster decisions.',
+  },
+  {
+    title: 'Pipeline Visibility',
+    description: 'Track status changes from first review to final hiring steps.',
+  },
 ];
 
 const categories = [
-  { title: 'Technology', jobs: '1,250 roles', icon: Globe },
-  { title: 'Finance', jobs: '620 roles', icon: Landmark },
-  { title: 'Healthcare', jobs: '890 roles', icon: Stethoscope },
-  { title: 'Manufacturing', jobs: '470 roles', icon: Factory },
-  { title: 'Operations', jobs: '540 roles', icon: Building2 },
-  { title: 'Marketing', jobs: '380 roles', icon: Target },
-];
-
-const floatingCards = [
-  { label: 'UX Researcher', meta: '92% fit score', className: 'top-6 -left-3 md:-left-8 float-card' },
-  { label: 'Frontend Engineer', meta: 'Strong shortlist', className: 'top-16 -right-3 md:-right-9 float-card delay-200' },
-  { label: 'Product Analyst', meta: 'Interview-ready', className: 'bottom-8 left-2 md:-left-10 float-card delay-400' },
+  { title: 'Technology', summary: 'Software, data, and platform roles', icon: Globe },
+  { title: 'Finance', summary: 'Banking, fintech, and risk operations', icon: Landmark },
+  { title: 'Healthcare', summary: 'Clinical, support, and health-tech teams', icon: Stethoscope },
+  { title: 'Manufacturing', summary: 'Production, quality, and process roles', icon: Factory },
+  { title: 'Operations', summary: 'Program, supply chain, and delivery roles', icon: Building2 },
+  { title: 'Marketing', summary: 'Brand, growth, and content functions', icon: Target },
 ];
 
 function SectionHeading({ eyebrow, title, subtitle }: { eyebrow: string; title: string; subtitle: string }) {
@@ -146,11 +152,11 @@ function FeatureList({ items }: { items: string[] }) {
 
 function CategoryCard({
   title,
-  jobs,
+  summary,
   icon: Icon,
 }: {
   title: string;
-  jobs: string;
+  summary: string;
   icon: ComponentType<{ className?: string }>;
 }) {
   return (
@@ -159,7 +165,7 @@ function CategoryCard({
         <Icon className="w-5 h-5" />
       </div>
       <h3 className="font-semibold text-[#043927]">{title}</h3>
-      <p className="text-sm text-gray-600 mt-1">{jobs}</p>
+      <p className="text-sm text-gray-600 mt-1">{summary}</p>
     </div>
   );
 }
@@ -234,12 +240,12 @@ export default function RecruiterPage() {
                       </p>
                       <div className="mt-4 space-y-2">
                         <div className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 flex items-center justify-between">
-                          <span>Candidate relevance score</span>
-                          <span className="font-semibold text-[#0f6a4c]">93%</span>
+                          <span>Candidate relevance signals</span>
+                          <span className="font-semibold text-[#0f6a4c]">Prioritized</span>
                         </div>
                         <div className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 flex items-center justify-between">
-                          <span>Average shortlist time</span>
-                          <span className="font-semibold text-[#0f6a4c]">-42%</span>
+                          <span>Shortlist workflow status</span>
+                          <span className="font-semibold text-[#0f6a4c]">In progress</span>
                         </div>
                       </div>
                     </div>
@@ -255,23 +261,6 @@ export default function RecruiterPage() {
                 </div>
               </div>
 
-              {floatingCards.map((card) => (
-                <div
-                  key={card.label}
-                  className={`hidden md:flex absolute ${card.className} items-center gap-2.5 rounded-xl border border-[#0f5b43]/20 bg-white px-3 py-2 shadow-xl`}
-                >
-                  <img
-                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(card.label)}&background=0f6a4c&color=ffffff&rounded=true&size=80`}
-                    alt={card.label}
-                    className="w-8 h-8 rounded-full"
-                    loading="lazy"
-                  />
-                  <div className="text-left">
-                    <div className="text-xs font-semibold text-[#043927] leading-none">{card.label}</div>
-                    <div className="text-[11px] text-gray-600 mt-1">{card.meta}</div>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
@@ -316,8 +305,8 @@ export default function RecruiterPage() {
                 </button>
               </div>
               <div className="hidden sm:block absolute -right-4 -top-4 rounded-xl bg-white border border-[#0f5b43]/15 shadow-lg px-4 py-3 float-card">
-                <div className="text-xs text-gray-500">AI matches reviewed</div>
-                <div className="text-lg font-bold text-[#043927]">2,450+</div>
+                <div className="text-xs text-gray-500">Recruiter view</div>
+                <div className="text-sm font-semibold text-[#043927]">Live shortlist panel</div>
               </div>
             </div>
 
@@ -450,10 +439,10 @@ export default function RecruiterPage() {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <div className="hero-shell p-8 md:p-10 text-white">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {stats.map((stat) => (
-                <div key={stat.label} className="rounded-2xl border border-white/20 bg-white/10 px-5 py-6 text-center">
-                  <div className="text-3xl font-bold">{stat.value}</div>
-                  <div className="text-sm text-white/80 mt-2">{stat.label}</div>
+              {workflowHighlights.map((item) => (
+                <div key={item.title} className="rounded-2xl border border-white/20 bg-white/10 px-5 py-6 text-center">
+                  <div className="text-lg font-semibold">{item.title}</div>
+                  <div className="text-sm text-white/80 mt-2">{item.description}</div>
                 </div>
               ))}
             </div>
@@ -470,7 +459,7 @@ export default function RecruiterPage() {
           />
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {categories.map((category) => (
-              <CategoryCard key={category.title} title={category.title} jobs={category.jobs} icon={category.icon} />
+              <CategoryCard key={category.title} title={category.title} summary={category.summary} icon={category.icon} />
             ))}
           </div>
         </div>

@@ -40,6 +40,9 @@ interface BackendApplication {
     email: string;
     phoneNumber?: string;
     school?: string;
+    avatarUrl?: string;
+    avatar_url?: string;
+    profileImageUrl?: string;
   };
   job: {
     _id: string;
@@ -190,8 +193,16 @@ function mapBackendJob(backendJob: BackendJob): Job {
 
 // Map backend application to frontend Application type
 function mapBackendApplication(backendApp: BackendApplication): Application {
+  const candidateAvatar =
+    backendApp.candidate.avatarUrl ||
+    backendApp.candidate.avatar_url ||
+    backendApp.candidate.profileImageUrl ||
+    '';
+
   return {
     id: backendApp._id,
+    candidate_id: backendApp.candidate._id,
+    candidate_avatar_url: candidateAvatar,
     job_id: backendApp.job._id,
     job_title: backendApp.job.title || '',
     job_company: backendApp.job.company || '',

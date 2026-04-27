@@ -16,12 +16,27 @@ export default function Navigation({ variant = 'default', links = [] }: Navigati
   const router = useRouter();
   const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [profileImageUrl, setProfileImageUrl] = useState('');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkUser = () => {
-      setCurrentUser(authStore.getCurrentUser());
+      const user = authStore.getCurrentUser();
+      setCurrentUser(user);
+      if (!user) {
+        setProfileImageUrl('');
+        return;
+      }
+      if (user.avatar_url) {
+        setProfileImageUrl(user.avatar_url);
+        return;
+      }
+      const fallbackAvatar =
+        user.role === 'jobseeker'
+          ? authStore.getJobSeekerProfile(user.id)?.avatar_url || ''
+          : authStore.getRecruiterProfileMeta(user.id)?.avatar_url || '';
+      setProfileImageUrl(fallbackAvatar);
     };
     
     checkUser();
@@ -55,16 +70,16 @@ export default function Navigation({ variant = 'default', links = [] }: Navigati
   const navItemClass = (href: string) =>
     `px-3 py-2 rounded-lg text-sm font-medium transition ${
       pathname.startsWith(href)
-        ? 'bg-[#043927]/10 text-[#043927]'
-        : 'text-gray-600 hover:text-[#043927] hover:bg-gray-50'
+        ? 'bg-white/20 text-white'
+        : 'text-white/85 hover:text-white hover:bg-white/10'
     }`;
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-[#0f4d3a]/10 bg-white/85 backdrop-blur-md">
+    <nav className="sticky top-0 z-40 border-b border-white/15 bg-gradient-to-r from-[#043927] via-[#0f5d43] to-[#1b7a57] backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left: Logo */}
-          <Link href="/" className="text-2xl font-bold tracking-tight text-[#043927] flex-shrink-0">
+          <Link href="/" className="text-2xl font-bold tracking-tight text-white flex-shrink-0">
             CareerLaunch
           </Link>
 
@@ -76,7 +91,7 @@ export default function Navigation({ variant = 'default', links = [] }: Navigati
                   <Link
                     key={link.href}
                     href={link.href}
-                    className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-[#043927] hover:bg-gray-50 transition"
+                    className="px-3 py-2 rounded-lg text-sm font-medium text-white/85 hover:text-white hover:bg-white/10 transition"
                   >
                     {link.label}
                   </Link>
@@ -103,22 +118,31 @@ export default function Navigation({ variant = 'default', links = [] }: Navigati
 
             {/* Divider between nav links and profile */}
             {currentUser && (variant === 'jobseeker' || variant === 'recruiter') && (
-              <div className="w-px h-6 bg-gray-200 mx-2" />
+              <div className="w-px h-6 bg-white/25 mx-2" />
             )}
 
             {currentUser ? (
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-xl border border-transparent hover:border-[#0f4d3a]/15 hover:bg-[#f4f8f5] transition"
+                  className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-xl border border-transparent hover:border-white/20 hover:bg-white/10 transition"
                 >
-                  <div className="w-8 h-8 rounded-full bg-[#043927] text-white flex items-center justify-center text-sm font-semibold flex-shrink-0">
-                    {currentUser.full_name?.charAt(0).toUpperCase() || 'U'}
+                  <div className="w-8 h-8 rounded-full bg-[#043927] text-white flex items-center justify-center text-sm font-semibold flex-shrink-0 overflow-hidden">
+                    {profileImageUrl ? (
+                      <img
+                        src={profileImageUrl}
+                        alt={currentUser.full_name || 'Profile photo'}
+                        className="w-full h-full object-cover"
+                        onError={() => setProfileImageUrl('')}
+                      />
+                    ) : (
+                      currentUser.full_name?.charAt(0).toUpperCase() || 'U'
+                    )}
                   </div>
-                  <span className="text-sm font-medium text-gray-700 hidden sm:block max-w-[120px] truncate">
+                  <span className="text-sm font-medium text-white hidden sm:block max-w-[120px] truncate">
                     {currentUser.full_name}
                   </span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 text-white/80 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
                 </button>
 
                 {showProfileMenu && (
@@ -162,12 +186,12 @@ export default function Navigation({ variant = 'default', links = [] }: Navigati
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <Link href="/login" className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-[#043927] hover:bg-gray-50 transition">
+                <Link href="/login" className="px-3 py-2 rounded-lg text-sm font-medium text-white/85 hover:text-white hover:bg-white/10 transition">
                   Sign In
                 </Link>
                 <Link
                   href="/signup"
-                  className="bg-gradient-to-r from-[#043927] to-[#065a3a] text-white px-5 py-2 rounded-lg text-sm font-medium hover:opacity-95 transition"
+                  className="bg-white text-[#0f5d43] px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#f3fbf6] transition"
                 >
                   {variant === 'recruiter' ? 'Post a Job' : 'Get Started'}
                 </Link>

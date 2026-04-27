@@ -1,4 +1,42 @@
 export type JobType = 'FULLTIME' | 'PARTTIME' | 'INTERNSHIP';
+export type WorkArrangement = 'onsite' | 'hybrid' | 'remote';
+export type SalaryPeriod = 'hourly' | 'monthly' | 'yearly';
+export type JobPostingStatus = 'draft' | 'published';
+
+export interface StructuredJobPostFormData {
+  title: string;
+  employmentType: JobType;
+  department: string;
+  roleOverview: string;
+  responsibilities: string;
+  requiredSkills: string[];
+  bonusSkills: string[];
+  educationRequirement: string;
+  experienceLevel: string;
+  workArrangement: WorkArrangement;
+  location: string;
+  benefits: string[];
+  languages: string[];
+  certificates: string[];
+  salary: {
+    currency: 'USD' | 'THB' | 'EUR' | 'GBP';
+    min: string;
+    max: string;
+    period: SalaryPeriod;
+    negotiable: boolean;
+    hidden: boolean;
+  };
+  imageUrl: string;
+  aiScoring: {
+    enabled: boolean;
+    weights: {
+      skills: number;
+      experience: number;
+      education: number;
+    };
+  };
+  status: JobPostingStatus;
+}
 
 export interface Job {
   id: string;
@@ -20,6 +58,8 @@ export interface Job {
 
 export interface Application {
   id: string;
+  candidate_id?: string;
+  candidate_avatar_url?: string;
   job_id: string;
   job_title: string;
   job_company: string;

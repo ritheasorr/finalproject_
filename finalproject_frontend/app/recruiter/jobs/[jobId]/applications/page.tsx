@@ -191,6 +191,19 @@ export default function ApplicationReviewPage() {
     });
   }, [applications, filter, scoreBand, sortBy]);
 
+  const applicantAvatarById = useMemo(() => {
+    const map = new Map<string, string>();
+    filteredApplications.forEach((app) => {
+      const avatarUrl =
+        app.candidate_avatar_url ||
+        (app.candidate_id ? authStore.getJobSeekerProfile(app.candidate_id)?.avatar_url || '' : '');
+      if (avatarUrl) {
+        map.set(app.id, avatarUrl);
+      }
+    });
+    return map;
+  }, [filteredApplications]);
+
   const stats = {
     total: applications.length,
     pending: applications.filter((a) => a.status === 'pending').length,
@@ -341,6 +354,7 @@ export default function ApplicationReviewPage() {
         <div className="space-y-3">
           {filteredApplications.map((app) => {
             const isExpanded = expandedApp === app.id;
+            const candidateAvatar = applicantAvatarById.get(app.id) || '';
             const matchLevel = getMatchLevel(app);
             const matchedSkills = (app.ai_matched_skills || []).slice(0, 8);
             const missingSkills = (app.ai_missing_skills || []).slice(0, 8);
@@ -350,15 +364,23 @@ export default function ApplicationReviewPage() {
               <div key={app.id} className="surface-card overflow-hidden fade-in-up">
                 <div className="px-6 py-4 cursor-pointer hover:bg-gray-50/50 transition" onClick={() => setExpandedApp(isExpanded ? null : app.id)}>
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-[#043927]/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-semibold text-[#043927]">
-                        {app.candidate_name
-                          .split(' ')
-                          .map((n) => n[0])
-                          .join('')
-                          .toUpperCase()
-                          .slice(0, 2)}
-                      </span>
+                    <div className="w-10 h-10 rounded-full bg-[#043927]/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {candidateAvatar ? (
+                        <img
+                          src={candidateAvatar}
+                          alt={app.candidate_name || 'Candidate'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-sm font-semibold text-[#043927]">
+                          {app.candidate_name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .toUpperCase()
+                            .slice(0, 2)}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex-1 min-w-0">
