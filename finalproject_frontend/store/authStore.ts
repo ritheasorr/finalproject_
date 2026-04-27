@@ -71,6 +71,41 @@ interface ResumeVaultResponse {
   careerInsights: string[];
 }
 
+interface PublicJobSeekerResponse {
+  jobseeker?: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phoneNumber?: string;
+    school?: string;
+    location?: string;
+    professionalTitle?: string;
+    bio?: string;
+    skills?: string[];
+    experienceEntries?: Array<{
+      role: string;
+      company: string;
+      period: string;
+      description: string;
+    }>;
+    educationEntries?: Array<{
+      school: string;
+      degree: string;
+      year: string;
+    }>;
+    portfolio?: {
+      github?: string;
+      linkedin?: string;
+      website?: string;
+    };
+    avatarUrl?: string;
+    coverImageUrl?: string;
+    resumeUrl?: string;
+    resumeFilename?: string;
+  };
+}
+
 // Map backend user to frontend User type
 function mapBackendUser(backendUser: AuthResponse['user']): User {
   return {
@@ -191,6 +226,21 @@ export const authStore = {
         created_at: new Date().toISOString(),
         avatar_url: response.user.avatarUrl || '',
       };
+
+      // Backfill legacy local-only recruiter avatar to backend so it is visible
+      // to other users on public recruiter profile pages.
+      if (user.role === 'recruiter' && !user.avatar_url) {
+        const localMetaAvatar = this.getRecruiterProfileMeta(user.id)?.avatar_url || '';
+        if (localMetaAvatar) {
+          try {
+            const synced = await apiClient.patch<UserResponse>('/users/me', { avatarUrl: localMetaAvatar });
+            user.avatar_url = synced.user.avatarUrl || localMetaAvatar;
+          } catch {
+            user.avatar_url = localMetaAvatar;
+          }
+        }
+      }
+
       this.setCurrentUser(user);
       return user;
     } catch {
@@ -263,6 +313,44 @@ export const authStore = {
       return merged;
     } catch (error) {
       console.error('Failed to fetch remote jobseeker profile:', error);
+      return undefined;
+    }
+  },
+
+  async getPublicJobSeekerProfile(userId: string): Promise<JobSeekerProfile | undefined> {
+    try {
+      const response = await apiClient.get<PublicJobSeekerResponse>(`/users/${userId}/public`);
+      const user = response.jobseeker;
+      if (!user || !user.id) return undefined;
+      return {
+        userId: user.id,
+        email: user.email || '',
+        phone_number: user.phoneNumber || '',
+        full_name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+        education: user.school || '',
+        skills: Array.isArray(user.skills) ? user.skills.join(', ') : '',
+        location: user.location || '',
+        professional_title: user.professionalTitle || '',
+        bio: user.bio || '',
+        experience: '',
+        avatar_url: user.avatarUrl || '',
+        cover_image_url: user.coverImageUrl || '',
+        linkedin_url: (user.portfolio && user.portfolio.linkedin) || '',
+        github_url: (user.portfolio && user.portfolio.github) || '',
+        website_url: (user.portfolio && user.portfolio.website) || '',
+        experience_entries: Array.isArray(user.experienceEntries) ? user.experienceEntries : [],
+        education_entries: Array.isArray(user.educationEntries) ? user.educationEntries : [],
+        resume_url: user.resumeUrl || '',
+        resume_filename: user.resumeFilename || '',
+        resume_extracted_text: '',
+        resume_updated_at: '',
+        career_insights: [],
+        saved_jobs: [],
+        availability_status: 'Open To Hire',
+        languages: [],
+      };
+    } catch (error) {
+      console.error('Failed to fetch public jobseeker profile:', error);
       return undefined;
     }
   },

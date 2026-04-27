@@ -20,6 +20,7 @@ import ProfileStats from '@/components/profile/ProfileStats';
 import { Skeleton } from '@/components/ui/skeleton';
 import { authStore } from '@/store/authStore';
 import { jobStore, RecruiterPublicProfile } from '@/store/jobStore';
+import { API_BASE_URL } from '@/lib/api';
 import { Job } from '@/types/job';
 
 
@@ -46,6 +47,12 @@ export default function RecruiterProfilePage() {
     phoneNumber: '',
   });
 
+  const normalizeImageUrl = (url?: string) => {
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
+    return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
+  };
+
   const loadData = async () => {
     const user = authStore.getCurrentUser();
     if (!user || user.role !== 'recruiter') {
@@ -55,12 +62,27 @@ export default function RecruiterProfilePage() {
 
     setLoading(true);
     try {
-      const [publicProfile, recruiterJobs] = await Promise.all([
+      const [publicProfileRaw, recruiterJobs] = await Promise.all([
         jobStore.getRecruiterPublicProfile(user.id),
         jobStore.getJobsByRecruiterId(user.id),
       ]);
 
       const localMeta = authStore.getRecruiterProfileMeta(user.id);
+      let publicProfile = publicProfileRaw;
+
+      // Backfill legacy local-only recruiter avatar into backend so other users
+      // can see it on public recruiter pages.
+      if (publicProfileRaw && !publicProfileRaw.avatarUrl && localMeta?.avatar_url) {
+        try {
+          await authStore.updateUserProfile({ avatarUrl: localMeta.avatar_url });
+          const refreshedProfile = await jobStore.getRecruiterPublicProfile(user.id);
+          if (refreshedProfile) {
+            publicProfile = refreshedProfile;
+          }
+        } catch {
+          // Non-blocking sync attempt.
+        }
+      }
 
       if (publicProfile) {
         setProfile(publicProfile);
@@ -76,7 +98,7 @@ export default function RecruiterProfilePage() {
           companyIndustry: localMeta?.company_industry || '',
           companyMission: localMeta?.company_mission || '',
           companyBenefits: localMeta?.company_benefits || '',
-          avatarImage: localMeta?.avatar_url || '',
+          avatarImage: publicProfile.avatarUrl || localMeta?.avatar_url || '',
           websiteUrl: localMeta?.website_url || '',
           linkedinUrl: localMeta?.linkedin_url || '',
           phoneNumber: publicProfile.phoneNumber || '',
@@ -126,6 +148,7 @@ export default function RecruiterProfilePage() {
         firstName: firstName || '',
         lastName: lastName || '',
         phoneNumber: formData.phoneNumber || '',
+        avatarUrl: formData.avatarImage || '',
       });
 
       authStore.updateRecruiterProfileMeta(user.id, {
@@ -180,7 +203,7 @@ export default function RecruiterProfilePage() {
         </div>
 
         <ProfileHeader
-          avatarImage={formData.avatarImage}
+          avatarImage={normalizeImageUrl(formData.avatarImage)}
           name={formData.fullName}
           roleLabel={formData.title || 'Recruiter'}
           company={formData.company || profile?.company}
@@ -214,10 +237,10 @@ export default function RecruiterProfilePage() {
               <div className="rounded-xl border border-[#0f5d43]/12 bg-[#f7fcf9] p-3.5">
                 <p className="text-xs uppercase tracking-[0.14em] text-gray-500 mb-2">Profile Photo</p>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="w-16 h-16 rounded-full border border-[#0f5d43]/15 bg-[#edf7f1] overflow-hidden flex items-center justify-center text-[#0f5d43] text-sm font-semibold shrink-0">
-                    {formData.avatarImage ? (
-                      <img src={formData.avatarImage} alt={formData.fullName || 'Profile photo'} className="w-full h-full object-cover" />
-                    ) : (
+	                  <div className="w-16 h-16 rounded-full border border-[#0f5d43]/15 bg-[#edf7f1] overflow-hidden flex items-center justify-center text-[#0f5d43] text-sm font-semibold shrink-0">
+	                    {formData.avatarImage ? (
+	                      <img src={normalizeImageUrl(formData.avatarImage)} alt={formData.fullName || 'Profile photo'} className="w-full h-full object-cover" />
+	                    ) : (
                       (formData.fullName || 'RP')
                         .split(' ')
                         .map((part) => part[0])
@@ -329,4 +352,3 @@ export default function RecruiterProfilePage() {
     </div>
   );
 }
-

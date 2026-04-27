@@ -113,7 +113,7 @@ router.post('/save', authMiddleware, ensureRecruiter, async function(req, res, n
         setDefaultsOnInsert: true,
       }
     )
-      .populate('candidate', 'firstName lastName email')
+      .populate('candidate', 'firstName lastName email avatarUrl')
       .populate('job', 'title company')
       .populate('application', 'aiScore status createdAt')
       .lean();
@@ -160,7 +160,7 @@ router.get('/', authMiddleware, ensureRecruiter, async function(req, res, next) 
     }
 
     const savedResumes = await RecruiterSavedResume.find(query)
-      .populate('candidate', 'firstName lastName email')
+      .populate('candidate', 'firstName lastName email avatarUrl')
       .populate('job', 'title company')
       .populate('application', 'aiScore status createdAt')
       .sort({ updatedAt: -1 })
@@ -181,7 +181,7 @@ router.patch('/:id/note', authMiddleware, ensureRecruiter, async function(req, r
       { note: note },
       { new: true }
     )
-      .populate('candidate', 'firstName lastName email')
+      .populate('candidate', 'firstName lastName email avatarUrl')
       .populate('job', 'title company')
       .populate('application', 'aiScore status createdAt')
       .lean();

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { authStore } from '@/store/authStore';
+import { API_BASE_URL } from '@/lib/api';
 import { User } from '@/types/user';
 import { LogOut, User as UserIcon, LayoutDashboard, ChevronDown } from 'lucide-react';
 
@@ -20,6 +21,12 @@ export default function Navigation({ variant = 'default', links = [] }: Navigati
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const normalizeImageUrl = (url?: string) => {
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
+    return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
+  };
+
   useEffect(() => {
     const checkUser = () => {
       const user = authStore.getCurrentUser();
@@ -29,14 +36,14 @@ export default function Navigation({ variant = 'default', links = [] }: Navigati
         return;
       }
       if (user.avatar_url) {
-        setProfileImageUrl(user.avatar_url);
+        setProfileImageUrl(normalizeImageUrl(user.avatar_url));
         return;
       }
       const fallbackAvatar =
         user.role === 'jobseeker'
           ? authStore.getJobSeekerProfile(user.id)?.avatar_url || ''
           : authStore.getRecruiterProfileMeta(user.id)?.avatar_url || '';
-      setProfileImageUrl(fallbackAvatar);
+      setProfileImageUrl(normalizeImageUrl(fallbackAvatar));
     };
     
     checkUser();
@@ -73,6 +80,12 @@ export default function Navigation({ variant = 'default', links = [] }: Navigati
         ? 'bg-white/20 text-white'
         : 'text-white/85 hover:text-white hover:bg-white/10'
     }`;
+
+  const publicProfileHref = currentUser
+    ? (currentUser.role === 'jobseeker'
+      ? `/jobseekers/${currentUser.id}`
+      : `/recruiters/${currentUser.id}`)
+    : '/';
 
   return (
     <nav className="sticky top-0 z-40 border-b border-white/15 bg-gradient-to-r from-[#043927] via-[#0f5d43] to-[#1b7a57] backdrop-blur-md">
@@ -123,11 +136,13 @@ export default function Navigation({ variant = 'default', links = [] }: Navigati
 
             {currentUser ? (
               <div className="relative" ref={menuRef}>
-                <button
-                  onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-xl border border-transparent hover:border-white/20 hover:bg-white/10 transition"
-                >
-                  <div className="w-8 h-8 rounded-full bg-[#043927] text-white flex items-center justify-center text-sm font-semibold flex-shrink-0 overflow-hidden">
+                <div className="flex items-center gap-1.5">
+                  <Link
+                    href={publicProfileHref}
+                    className="w-8 h-8 rounded-full bg-[#043927] text-white flex items-center justify-center text-sm font-semibold flex-shrink-0 overflow-hidden border border-transparent hover:border-white/25 transition"
+                    title="Open public profile"
+                    onClick={() => setShowProfileMenu(false)}
+                  >
                     {profileImageUrl ? (
                       <img
                         src={profileImageUrl}
@@ -138,12 +153,17 @@ export default function Navigation({ variant = 'default', links = [] }: Navigati
                     ) : (
                       currentUser.full_name?.charAt(0).toUpperCase() || 'U'
                     )}
-                  </div>
-                  <span className="text-sm font-medium text-white hidden sm:block max-w-[120px] truncate">
-                    {currentUser.full_name}
-                  </span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-white/80 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
-                </button>
+                  </Link>
+                  <button
+                    onClick={() => setShowProfileMenu(!showProfileMenu)}
+                    className="flex items-center gap-2 pr-3 py-1.5 rounded-xl border border-transparent hover:border-white/20 hover:bg-white/10 transition"
+                  >
+                    <span className="text-sm font-medium text-white hidden sm:block max-w-[120px] truncate">
+                      {currentUser.full_name}
+                    </span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-white/80 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
 
                 {showProfileMenu && (
                   <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl shadow-lg border border-[#0f4d3a]/15 py-1.5 z-50">

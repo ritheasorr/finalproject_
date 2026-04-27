@@ -267,6 +267,7 @@ export default function JobSeekerDashboard() {
       <div className="space-y-4 pb-20 md:pb-0">
         <JobseekerHero
           firstName={firstName}
+          avatarUrl={profile.avatar_url || ''}
           applicationsCount={derived.total}
           activeCount={derived.active}
           profileCompletion={profileChecklist.completion}

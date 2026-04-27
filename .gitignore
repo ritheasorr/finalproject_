@@ -1,0 +1,10 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Runtime uploads (generated at runtime)
+finalproject_backend/public/uploads/
+
+# OCR service local tools/artifacts
+ocr_service/tools/
+ocr_service/*.zip

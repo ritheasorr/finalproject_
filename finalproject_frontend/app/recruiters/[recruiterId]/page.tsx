@@ -19,6 +19,7 @@ import Navigation from '@/components/Navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { authStore } from '@/store/authStore';
 import { jobStore, RecruiterPublicProfile } from '@/store/jobStore';
+import { API_BASE_URL } from '@/lib/api';
 import { Job } from '@/types/job';
 import { CtaLink, PremiumBadge, PublicAvatar, SectionCard, StatCard } from '@/components/public-profile/premium-ui';
 
@@ -33,6 +34,12 @@ function inferWorkMode(location: string) {
   if (normalized.includes('remote')) return 'Remote';
   if (normalized.includes('hybrid')) return 'Hybrid';
   return 'On-site';
+}
+
+function normalizeImageUrl(url?: string) {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
+  return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
 export default function PublicRecruiterProfilePage() {
@@ -75,7 +82,7 @@ export default function PublicRecruiterProfilePage() {
           localMeta?.about ||
           `${recruiterProfile.fullName} partners with hiring teams to attract high-potential talent and create fast, transparent hiring experiences.`
         );
-        setAvatarImage(localMeta?.avatar_url || '');
+        setAvatarImage(normalizeImageUrl(recruiterProfile.avatarUrl || localMeta?.avatar_url || ''));
         setWebsiteUrl(localMeta?.website_url || '');
         setLinkedinUrl(localMeta?.linkedin_url || '');
         setCompanySize(localMeta?.company_size || '');

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -28,8 +29,10 @@ import {
   FileDown,
   Filter,
   ListFilter,
+  MoreVertical,
   Search,
   Sparkles,
+  Trash2,
   UserRoundCheck,
   Users,
   XCircle,
@@ -106,6 +109,12 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
+function normalizeAvatarUrl(url?: string): string {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
+  return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
+}
+
 export default function RecruiterDashboardPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -119,6 +128,9 @@ export default function RecruiterDashboardPage() {
   const [shortlistedIds, setShortlistedIds] = useState<Set<string>>(new Set());
   const [scheduledInterviewIds, setScheduledInterviewIds] = useState<Set<string>>(new Set());
   const [rejectingIds, setRejectingIds] = useState<Set<string>>(new Set());
+  const [closingJobIds, setClosingJobIds] = useState<Set<string>>(new Set());
+  const [deletingJobIds, setDeletingJobIds] = useState<Set<string>>(new Set());
+  const [listedJobMenu, setListedJobMenu] = useState<{ jobId: string; top: number; left: number } | null>(null);
 
   const loadDashboard = async () => {
     const user = authStore.getCurrentUser();
@@ -321,9 +333,10 @@ export default function RecruiterDashboardPage() {
   const applicantAvatarById = useMemo(() => {
     const map = new Map<string, string>();
     filteredApplicants.forEach((app) => {
-      const avatarUrl =
+      const avatarUrl = normalizeAvatarUrl(
         app.candidateAvatarUrl ||
-        (app.candidateId ? authStore.getJobSeekerProfile(app.candidateId)?.avatar_url || '' : '');
+        (app.candidateId ? authStore.getJobSeekerProfile(app.candidateId)?.avatar_url || '' : '')
+      );
       if (avatarUrl) {
         map.set(app.id, avatarUrl);
       }
@@ -386,6 +399,10 @@ export default function RecruiterDashboardPage() {
   }, [jobs, applications]);
 
   const quickListedJobs = useMemo(() => postedJobs.slice(0, 6), [postedJobs]);
+  const activeListedJob = useMemo(
+    () => quickListedJobs.find((job) => job.id === listedJobMenu?.jobId) || null,
+    [quickListedJobs, listedJobMenu]
+  );
 
   const aiInsights = useMemo(() => {
     const insights: string[] = [];
@@ -447,6 +464,73 @@ export default function RecruiterDashboardPage() {
       });
     }
   };
+
+  const handleCloseJob = async (jobId: string) => {
+    try {
+      setClosingJobIds((prev) => new Set(prev).add(jobId));
+      await jobStore.updateJob(jobId, { status: 'closed' });
+      toast.success('Job closed successfully');
+      await loadDashboard();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to close job';
+      toast.error(message);
+    } finally {
+      setClosingJobIds((prev) => {
+        const next = new Set(prev);
+        next.delete(jobId);
+        return next;
+      });
+    }
+  };
+
+  const handleDeleteJob = async (jobId: string, title: string) => {
+    const confirmed = window.confirm(`Delete job "${title}"? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      setDeletingJobIds((prev) => new Set(prev).add(jobId));
+      await jobStore.deleteJob(jobId);
+      toast.success('Job deleted successfully');
+      await loadDashboard();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete job';
+      toast.error(message);
+    } finally {
+      setDeletingJobIds((prev) => {
+        const next = new Set(prev);
+        next.delete(jobId);
+        return next;
+      });
+    }
+  };
+
+  const toggleListedJobMenu = (jobId: string, event: ReactMouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 160;
+    const viewportPadding = 8;
+    const left = Math.max(
+      viewportPadding,
+      Math.min(window.innerWidth - menuWidth - viewportPadding, rect.right - menuWidth)
+    );
+    const top = rect.bottom + 6;
+    setListedJobMenu((prev) => {
+      if (prev && prev.jobId === jobId) return null;
+      return { jobId, top, left };
+    });
+  };
+
+  useEffect(() => {
+    if (!listedJobMenu) return;
+    const closeMenu = () => setListedJobMenu(null);
+    window.addEventListener('resize', closeMenu);
+    window.addEventListener('scroll', closeMenu, true);
+    return () => {
+      window.removeEventListener('resize', closeMenu);
+      window.removeEventListener('scroll', closeMenu, true);
+    };
+  }, [listedJobMenu]);
 
   if (!mounted || loading) {
     return (
@@ -517,7 +601,7 @@ export default function RecruiterDashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen page-gradient relative overflow-hidden">
+    <div className="min-h-screen page-gradient relative overflow-x-hidden">
       <Navigation variant="recruiter" />
 
       <div className="pointer-events-none absolute inset-0">
@@ -526,7 +610,7 @@ export default function RecruiterDashboardPage() {
       </div>
 
       <div className="max-w-[1320px] mx-auto px-3 sm:px-4 lg:px-6 py-6 relative space-y-4">
-        <section className="surface-card rounded-2xl p-4 sm:p-5">
+        <section className="surface-card rounded-2xl p-4 sm:p-5 relative z-30 overflow-visible isolate">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-[#073f2f]">Recruiter Dashboard</h1>
@@ -726,46 +810,58 @@ export default function RecruiterDashboardPage() {
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {quickListedJobs.map((job) => (
-                <div key={job.id} className="rounded-xl border border-gray-100 bg-white p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold text-gray-900 text-sm">{job.title}</p>
-                    <span className={`text-[11px] px-2 py-1 rounded-full border ${job.status === 'closed' ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                      {(job.status || 'open').toUpperCase()}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">{job.company}{job.location ? ` - ${job.location}` : ''}</p>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                    <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center">
-                      <p className="text-gray-500">Applicants</p>
-                      <p className="font-semibold text-gray-900">{job.applications}</p>
-                    </div>
-                    <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center">
-                      <p className="text-gray-500">85+ Score</p>
-                      <p className="font-semibold text-gray-900">{job.highScore}</p>
-                    </div>
-                    <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center">
-                      <p className="text-gray-500">Avg Score</p>
-                      <p className="font-semibold text-gray-900">{job.averageScore}%</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <Link href={`/recruiter/jobs/${job.id}/edit`} className="inline-flex items-center justify-center rounded-lg border border-[#0f5d43]/20 text-[#0f5d43] px-3 py-2 text-xs font-medium hover:bg-[#edf7f1] transition">
-                      Job Details
-                    </Link>
-                    <Link href={`/recruiter/jobs/${job.id}/applications`} className="inline-flex items-center justify-center rounded-lg bg-[#0f5d43] text-white px-3 py-2 text-xs font-medium hover:bg-[#0b4f39] transition">
-                      Applications
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+	          ) : (
+	            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 overflow-visible">
+	              {quickListedJobs.map((job) => {
+	                const closing = closingJobIds.has(job.id);
+	                const deleting = deletingJobIds.has(job.id);
+	                const closed = (job.status || 'open') === 'closed';
+	                return (
+	                  <div key={job.id} className="rounded-xl border border-gray-100 bg-white p-4 relative overflow-visible">
+	                    <div className="flex items-start justify-between gap-2">
+	                      <p className="font-semibold text-gray-900 text-sm">{job.title}</p>
+	                      <span className={`text-[11px] px-2 py-1 rounded-full border ${job.status === 'closed' ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+	                        {(job.status || 'open').toUpperCase()}
+	                      </span>
+	                    </div>
+	                    <p className="text-xs text-gray-500 mt-1">{job.company}{job.location ? ` - ${job.location}` : ''}</p>
+	                    <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+	                      <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center">
+	                        <p className="text-gray-500">Applicants</p>
+	                        <p className="font-semibold text-gray-900">{job.applications}</p>
+	                      </div>
+	                      <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center">
+	                        <p className="text-gray-500">85+ Score</p>
+	                        <p className="font-semibold text-gray-900">{job.highScore}</p>
+	                      </div>
+	                      <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center">
+	                        <p className="text-gray-500">Avg Score</p>
+	                        <p className="font-semibold text-gray-900">{job.averageScore}%</p>
+	                      </div>
+	                    </div>
+	                    <div className="mt-3 flex items-center gap-2">
+	                      <Link href={`/recruiter/jobs/${job.id}/applications`} className="inline-flex flex-1 items-center justify-center rounded-lg bg-[#0f5d43] text-white px-3 py-2 text-xs font-medium hover:bg-[#0b4f39] transition">
+	                        Application
+	                      </Link>
+	                      <div className="relative">
+	                        <button
+	                          type="button"
+	                          onClick={(event) => toggleListedJobMenu(job.id, event)}
+	                          className="inline-flex items-center justify-center rounded-lg border border-[#0f5d43]/20 text-[#0f5d43] px-2.5 py-2 hover:bg-[#edf7f1] transition"
+	                          aria-label="Job actions"
+	                        >
+	                          <MoreVertical className="w-4 h-4" />
+	                        </button>
+	                      </div>
+	                    </div>
+	                  </div>
+	                );
+	              })}
+	            </div>
+	          )}
         </section>
 
-        <section className="surface-card rounded-2xl p-4 sm:p-5">
+        <section className="surface-card rounded-2xl p-4 sm:p-5 relative z-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-900">Recent Applicants</h2>
             <span className="text-xs text-gray-500">Who needs action?</span>
@@ -806,21 +902,25 @@ export default function RecruiterDashboardPage() {
                             : 'text-gray-700 bg-gray-50 border-gray-200';
                     return (
                       <tr key={app.id} className="border-b border-gray-100 hover:bg-gray-50/70 transition">
-                        <td className="py-3 pr-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-9 h-9 rounded-full bg-[#e6f4ec] text-[#0f5d43] flex items-center justify-center text-xs font-semibold overflow-hidden">
-                              {candidateAvatar ? (
-                                <img
-                                  src={candidateAvatar}
-                                  alt={app.name || 'Candidate'}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                getInitials(app.name)
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{app.name}</p>
+	                        <td className="py-3 pr-3">
+	                          <div className="flex items-center gap-2">
+	                            <Link
+	                              href={`/jobseekers/${app.candidateId}`}
+	                              className="w-9 h-9 rounded-full bg-[#e6f4ec] text-[#0f5d43] flex items-center justify-center text-xs font-semibold overflow-hidden ring-2 ring-transparent hover:ring-[#0f5d43]/25 transition"
+	                              title="View candidate public profile"
+	                            >
+	                              {candidateAvatar ? (
+	                                <img
+	                                  src={candidateAvatar}
+	                                  alt={app.name || 'Candidate'}
+	                                  className="w-full h-full object-cover"
+	                                />
+	                              ) : (
+	                                getInitials(app.name)
+	                              )}
+	                            </Link>
+	                            <div>
+	                              <p className="font-medium text-gray-900">{app.name}</p>
                               <p className="text-xs text-gray-500">{app.email}</p>
                             </div>
                           </div>
@@ -1008,9 +1108,13 @@ export default function RecruiterDashboardPage() {
                   <p className="font-medium text-gray-700">No jobs posted yet</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {postedJobs.map((job) => (
-                    <div key={job.id} className="rounded-xl border border-gray-100 bg-white p-4">
+	                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+	                  {postedJobs.map((job) => {
+	                    const closing = closingJobIds.has(job.id);
+	                    const deleting = deletingJobIds.has(job.id);
+	                    const closed = (job.status || 'open') === 'closed';
+	                    return (
+	                    <div key={job.id} className="rounded-xl border border-gray-100 bg-white p-4">
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="font-semibold text-gray-900 text-sm">{job.title}</p>
@@ -1025,17 +1129,74 @@ export default function RecruiterDashboardPage() {
                         <div className="rounded-lg bg-gray-50 px-2 py-2 text-center"><p className="text-gray-500">85+ Score</p><p className="font-semibold text-gray-900">{job.highScore}</p></div>
                         <div className="rounded-lg bg-gray-50 px-2 py-2 text-center"><p className="text-gray-500">Avg Score</p><p className="font-semibold text-gray-900">{job.averageScore}%</p></div>
                       </div>
-                      <Link href={`/recruiter/jobs/${job.id}/applications`} className="mt-3 inline-flex items-center justify-center w-full gap-1 rounded-lg border border-[#0f5d43]/20 text-[#0f5d43] px-3 py-2 text-sm font-medium hover:bg-[#edf7f1] transition">
-                        Open Job Page
-                        <ArrowRight className="w-4 h-4" />
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              )}
+	                      <Link href={`/recruiter/jobs/${job.id}/applications`} className="mt-3 inline-flex items-center justify-center w-full gap-1 rounded-lg border border-[#0f5d43]/20 text-[#0f5d43] px-3 py-2 text-sm font-medium hover:bg-[#edf7f1] transition">
+	                        Open Job Page
+	                        <ArrowRight className="w-4 h-4" />
+	                      </Link>
+	                      <div className="mt-2 grid grid-cols-2 gap-2">
+	                        <button
+	                          onClick={() => handleCloseJob(job.id)}
+	                          disabled={closed || closing || deleting}
+	                          className="inline-flex items-center justify-center rounded-lg border border-amber-200 text-amber-700 px-3 py-2 text-xs font-medium hover:bg-amber-50 transition disabled:opacity-60 disabled:cursor-not-allowed"
+	                        >
+	                          {closed ? 'Closed' : closing ? 'Closing...' : 'Close Job'}
+	                        </button>
+	                        <button
+	                          onClick={() => handleDeleteJob(job.id, job.title)}
+	                          disabled={deleting || closing}
+	                          className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 text-red-700 px-3 py-2 text-xs font-medium hover:bg-red-50 transition disabled:opacity-60 disabled:cursor-not-allowed"
+	                        >
+	                          <Trash2 className="w-3.5 h-3.5" />
+	                          {deleting ? 'Deleting...' : 'Delete'}
+	                        </button>
+	                      </div>
+	                    </div>
+	                  )})}
+	                </div>
+	              )}
             </section>
           </div>
         </details>
+        {listedJobMenu && activeListedJob && createPortal(
+          <div className="fixed inset-0 z-[220]" onClick={() => setListedJobMenu(null)}>
+            <div
+              className="absolute w-40 rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden"
+              style={{ top: listedJobMenu.top, left: listedJobMenu.left }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Link
+                href={`/recruiter/jobs/${activeListedJob.id}/edit`}
+                className="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                onClick={() => setListedJobMenu(null)}
+              >
+                Detail
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setListedJobMenu(null);
+                  void handleCloseJob(activeListedJob.id);
+                }}
+                disabled={(activeListedJob.status || 'open') === 'closed' || closingJobIds.has(activeListedJob.id) || deletingJobIds.has(activeListedJob.id)}
+                className="w-full text-left px-3 py-2 text-xs text-amber-700 hover:bg-amber-50 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {(activeListedJob.status || 'open') === 'closed' ? 'Closed' : closingJobIds.has(activeListedJob.id) ? 'Closing...' : 'Close'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setListedJobMenu(null);
+                  void handleDeleteJob(activeListedJob.id, activeListedJob.title);
+                }}
+                disabled={deletingJobIds.has(activeListedJob.id) || closingJobIds.has(activeListedJob.id)}
+                className="w-full text-left px-3 py-2 text-xs text-red-700 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {deletingJobIds.has(activeListedJob.id) ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
       </div>
     </div>
   );

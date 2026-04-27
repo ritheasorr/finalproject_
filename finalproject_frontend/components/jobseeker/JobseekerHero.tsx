@@ -3,6 +3,7 @@ import { ArrowRight, BriefcaseBusiness, UploadCloud, UserCog } from 'lucide-reac
 
 interface JobseekerHeroProps {
   firstName: string;
+  avatarUrl?: string;
   applicationsCount: number;
   activeCount: number;
   profileCompletion: number;
@@ -10,6 +11,7 @@ interface JobseekerHeroProps {
 
 export function JobseekerHero({
   firstName,
+  avatarUrl,
   applicationsCount,
   activeCount,
   profileCompletion,
@@ -71,8 +73,16 @@ export function JobseekerHero({
         <div className="rounded-2xl border border-white/20 bg-white/12 backdrop-blur-md p-4">
           <p className="text-xs text-white/75 uppercase tracking-wide">My Career Card</p>
           <div className="mt-3 flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-white text-[#0c3f30] font-bold text-lg flex items-center justify-center">
-              {initials}
+            <div className="w-12 h-12 rounded-full bg-white text-[#0c3f30] font-bold text-lg flex items-center justify-center overflow-hidden">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={`${firstName} profile`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                initials
+              )}
             </div>
             <div>
               <p className="font-semibold">CareerLaunch Member</p>
@@ -90,4 +100,3 @@ export function JobseekerHero({
     </section>
   );
 }
-

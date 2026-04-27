@@ -24,6 +24,15 @@ router.get('/me', authMiddleware, function(req, res) {
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
+      const resolvedAvatarUrl =
+        (typeof user.avatarUrl === 'string' && user.avatarUrl.trim()) ||
+        (typeof user.avatar_url === 'string' && user.avatar_url.trim()) ||
+        (typeof user.profileImageUrl === 'string' && user.profileImageUrl.trim()) ||
+        (typeof user.profile_image_url === 'string' && user.profile_image_url.trim()) ||
+        '';
+      if (!user.avatarUrl && resolvedAvatarUrl) {
+        User.updateOne({ _id: user._id }, { $set: { avatarUrl: resolvedAvatarUrl } }).catch(function() {});
+      }
       return res.json({
         user: {
           id: user._id,
@@ -40,7 +49,7 @@ router.get('/me', authMiddleware, function(req, res) {
           experienceEntries: Array.isArray(user.experienceEntries) ? user.experienceEntries : [],
           educationEntries: Array.isArray(user.educationEntries) ? user.educationEntries : [],
           portfolio: user.portfolio || { github: '', linkedin: '', website: '' },
-          avatarUrl: user.avatarUrl || '',
+          avatarUrl: resolvedAvatarUrl,
           coverImageUrl: user.coverImageUrl || '',
           resumeUrl: user.resumeUrl || '',
           resumeFilename: user.resumeFilename || '',
@@ -245,15 +254,54 @@ router.post('/me/avatar', authMiddleware, avatarUpload.single('avatar'), async f
 
 router.get('/:id/public', authMiddleware, async function(req, res, next) {
   try {
-    const recruiter = await User.findById(req.params.id)
-      .select('firstName lastName email phoneNumber role')
-      .lean();
+    const user = await User.findById(req.params.id).lean();
 
-    if (!recruiter || recruiter.role !== 'recruiter') {
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const resolvedAvatarUrl =
+      (typeof user.avatarUrl === 'string' && user.avatarUrl.trim()) ||
+      (typeof user.avatar_url === 'string' && user.avatar_url.trim()) ||
+      (typeof user.profileImageUrl === 'string' && user.profileImageUrl.trim()) ||
+      (typeof user.profile_image_url === 'string' && user.profile_image_url.trim()) ||
+      '';
+
+    if (!user.avatarUrl && resolvedAvatarUrl) {
+      // Best-effort migration for legacy avatar fields.
+      User.updateOne({ _id: user._id }, { $set: { avatarUrl: resolvedAvatarUrl } }).catch(function() {});
+    }
+
+    if (user.role === 'candidate') {
+      return res.json({
+        jobseeker: {
+          id: user._id,
+          fullName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim(),
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          email: user.email || '',
+          phoneNumber: user.phoneNumber || '',
+          school: user.school || '',
+          location: user.location || '',
+          professionalTitle: user.professionalTitle || '',
+          bio: user.bio || '',
+          skills: Array.isArray(user.skills) ? user.skills : [],
+          experienceEntries: Array.isArray(user.experienceEntries) ? user.experienceEntries : [],
+          educationEntries: Array.isArray(user.educationEntries) ? user.educationEntries : [],
+          portfolio: user.portfolio || { github: '', linkedin: '', website: '' },
+          avatarUrl: resolvedAvatarUrl,
+          coverImageUrl: user.coverImageUrl || '',
+          resumeUrl: user.resumeUrl || '',
+          resumeFilename: user.resumeFilename || '',
+        }
+      });
+    }
+
+    if (user.role !== 'recruiter') {
       return res.status(404).json({ error: 'Recruiter not found' });
     }
 
-    const activeJobs = await Job.find({ recruiter: recruiter._id, status: 'open' })
+    const activeJobs = await Job.find({ recruiter: user._id, status: 'open' })
       .select('title company location createdAt')
       .sort({ createdAt: -1 })
       .lean();
@@ -268,12 +316,13 @@ router.get('/:id/public', authMiddleware, async function(req, res, next) {
 
     return res.json({
       recruiter: {
-        id: recruiter._id,
-        fullName: [recruiter.firstName, recruiter.lastName].filter(Boolean).join(' ').trim(),
-        firstName: recruiter.firstName || '',
-        lastName: recruiter.lastName || '',
-        email: recruiter.email,
-        phoneNumber: recruiter.phoneNumber || '',
+        id: user._id,
+        fullName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim(),
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email,
+        phoneNumber: user.phoneNumber || '',
+        avatarUrl: resolvedAvatarUrl,
         company: company,
         location: location,
         totalActiveJobs: activeJobs.length,

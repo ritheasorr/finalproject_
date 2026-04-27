@@ -71,6 +71,22 @@ const STRONG_BACKEND_TERMS = [
 
 const MODERN_FRONTEND_TERMS = ['react', 'nextjs', 'vue'];
 const PYTHON_BACKEND_TERMS = ['python', 'fastapi', 'django', 'flask'];
+const SOFT_SKILL_TERMS = [
+  'communication',
+  'leadership',
+  'teamwork',
+  'collaboration',
+  'interpersonal',
+  'presentation',
+  'negotiation',
+  'problem solving',
+  'adaptability',
+  'time management',
+  'critical thinking',
+  'sales',
+  'sale',
+  'customer service'
+];
 
 function clampNumber(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -128,6 +144,20 @@ function mapPhraseToCanonical(phrase) {
   return normalizedPhrase;
 }
 
+function isSoftSkillPhrase(phrase) {
+  const normalizedPhrase = normalizeText(phrase);
+  if (!normalizedPhrase) return false;
+  return SOFT_SKILL_TERMS.some(function(term) {
+    return containsPhrase(normalizedPhrase, term);
+  });
+}
+
+function filterSoftSkillItems(list) {
+  return (Array.isArray(list) ? list : []).filter(function(item) {
+    return !isSoftSkillPhrase(item);
+  });
+}
+
 function getJobText(job) {
   return [
     job && job.title,
@@ -167,6 +197,9 @@ function buildJobRequirements(job, jobText, canonicalJobSkills) {
   const normalizedJobText = normalizeText(jobText);
 
   (Array.isArray(job && job.skills) ? job.skills : []).forEach(function(skill) {
+    if (isSoftSkillPhrase(skill)) {
+      return;
+    }
     const canonical = mapPhraseToCanonical(skill);
     if (canonical) {
       requirements.push({
@@ -526,7 +559,7 @@ async function computeGeminiExplanationDetailed(resumeText, job, finalResult, le
     return null;
   }
 
-  const requirements = Array.isArray(job.skills) ? job.skills : [];
+  const requirements = filterSoftSkillItems(Array.isArray(job.skills) ? job.skills : []);
   const prompt = [
     'You are an expert technical recruiter.',
     '',
@@ -748,10 +781,10 @@ function parseGeminiResult(rawText) {
     : getMatchLevel(normalizedScore);
 
   const matchedRequirements = parsed && Array.isArray(parsed.matchedRequirements)
-    ? parsed.matchedRequirements.map(String).slice(0, 12)
+    ? filterSoftSkillItems(parsed.matchedRequirements.map(String)).slice(0, 12)
     : [];
   const missingRequirements = parsed && Array.isArray(parsed.missingRequirements)
-    ? parsed.missingRequirements.map(String).slice(0, 12)
+    ? filterSoftSkillItems(parsed.missingRequirements.map(String)).slice(0, 12)
     : [];
   const reason = parsed && typeof parsed.reason === 'string' ? parsed.reason : '';
 
@@ -784,6 +817,7 @@ async function computeGeminiResumeScoreDetailed(resumeText, job, options) {
     '- If 3 out of 4 core requirements match, score is usually 70+ unless clear red flags.',
     '- If all core requirements match, score is usually 80+.',
     '- Missing PostgreSQL alone should not push score below 70 when backend/database fit exists.',
+    '- Do not treat soft skills (e.g., leadership, communication, sales) as core blockers for technical matching.',
     '',
     `JOB TITLE: ${job.title || ''}`,
     `JOB DESCRIPTION: ${job.description || ''}`,
@@ -872,8 +906,8 @@ async function computeResumeScoreDetailed(resumeText, job, options) {
   let finalScore = Math.round((lexical.score * 0.2) + (gemini.score * 0.8));
   finalScore = clampNumber(finalScore, 0, 100);
 
-  const mergedMatched = Array.from(new Set([].concat(gemini.matchedRequirements || [], lexical.matchedRequirements || []))).slice(0, 12);
-  const mergedMissing = Array.from(new Set([].concat(gemini.missingRequirements || [], lexical.missingRequirements || []))).slice(0, 12);
+  const mergedMatched = filterSoftSkillItems(Array.from(new Set([].concat(gemini.matchedRequirements || [], lexical.matchedRequirements || [])))).slice(0, 12);
+  const mergedMissing = filterSoftSkillItems(Array.from(new Set([].concat(gemini.missingRequirements || [], lexical.missingRequirements || [])))).slice(0, 12);
   const matchLevel = getMatchLevel(finalScore);
 
   const baseResult = {

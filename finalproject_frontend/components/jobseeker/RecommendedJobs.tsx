@@ -35,7 +35,7 @@ export function RecommendedJobs({ jobs }: RecommendedJobsProps) {
               </p>
             </div>
             <span className="text-xs px-2.5 py-1 rounded-full bg-[#edf7f1] text-[#0f5d43] border border-[#0f5d43]/20 font-semibold">
-              {item.match}% match
+              Recommended
             </span>
           </div>
 
@@ -62,4 +62,3 @@ export function RecommendedJobs({ jobs }: RecommendedJobsProps) {
     </div>
   );
 }
-

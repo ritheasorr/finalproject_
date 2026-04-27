@@ -113,6 +113,7 @@ interface BackendRecruiterPublicProfile {
     lastName: string;
     email: string;
     phoneNumber: string;
+    avatarUrl?: string;
     company: string;
     location: string;
     totalActiveJobs: number;
@@ -127,6 +128,7 @@ export interface RecruiterPublicProfile {
   lastName: string;
   email: string;
   phoneNumber: string;
+  avatarUrl: string;
   company: string;
   location: string;
   totalActiveJobs: number;
@@ -296,6 +298,7 @@ export const jobStore = {
         lastName: response.recruiter.lastName,
         email: response.recruiter.email,
         phoneNumber: response.recruiter.phoneNumber,
+        avatarUrl: response.recruiter.avatarUrl || '',
         company: response.recruiter.company,
         location: response.recruiter.location,
         totalActiveJobs: response.recruiter.totalActiveJobs,
@@ -413,6 +416,16 @@ export const jobStore = {
       return mapBackendApplication(response.application);
     } catch (error) {
       console.error('Error updating application status:', error);
+      throw error;
+    }
+  },
+
+  async reEvaluateApplication(id: string): Promise<Application | undefined> {
+    try {
+      const response = await apiClient.patch<{ application: BackendApplication }>(`/applications/${id}/re-evaluate`);
+      return mapBackendApplication(response.application);
+    } catch (error) {
+      console.error('Error re-evaluating application:', error);
       throw error;
     }
   },

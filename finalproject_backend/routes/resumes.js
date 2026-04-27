@@ -182,6 +182,11 @@ router.post('/', authMiddleware, ensureCandidate, upload.single('resume'), async
           extractedText = parsed && parsed.text ? String(parsed.text) : '';
         }
       }
+      if (!String(extractedText || '').trim()) {
+        return res.status(422).json({
+          error: 'Could not extract text from this PDF resume. Please upload a text-based PDF/TXT resume or ensure OCR service dependencies are installed.'
+        });
+      }
     } else {
       extractedText = extractTextFromTxtBuffer(req.file.buffer);
     }

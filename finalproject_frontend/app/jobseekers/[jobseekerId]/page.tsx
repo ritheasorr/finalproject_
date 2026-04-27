@@ -21,6 +21,7 @@ import {
 import Navigation from '@/components/Navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { authStore } from '@/store/authStore';
+import { API_BASE_URL } from '@/lib/api';
 import { JobSeekerProfile, User } from '@/types/user';
 import { PremiumBadge, PublicAvatar, SectionCard, StatCard } from '@/components/public-profile/premium-ui';
 
@@ -86,6 +87,12 @@ function toSentenceCase(text: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function normalizeAssetUrl(url?: string) {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
+  return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
+}
+
 export default function PublicJobSeekerProfilePage() {
   const params = useParams();
   const jobseekerId = params?.jobseekerId as string;
@@ -110,6 +117,9 @@ export default function PublicJobSeekerProfilePage() {
         if (user?.id === jobseekerId && user.role === 'jobseeker') {
           const remoteProfile = await authStore.getJobSeekerProfileRemote(jobseekerId);
           resolvedProfile = remoteProfile || localProfile;
+        } else {
+          const publicProfile = await authStore.getPublicJobSeekerProfile(jobseekerId);
+          resolvedProfile = publicProfile || localProfile;
         }
 
         if (!resolvedProfile) {
@@ -199,9 +209,9 @@ export default function PublicJobSeekerProfilePage() {
           <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-white/10 blur-2xl" />
           <div className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-[#9de5c6]/20 blur-2xl" />
 
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-            <div className="flex items-start gap-4">
-              <PublicAvatar name={fullName} imageUrl={profile.avatar_url} sizeClass="w-24 h-24 md:w-28 md:h-28" />
+	          <div className="relative z-10 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+	            <div className="flex items-start gap-4">
+	              <PublicAvatar name={fullName} imageUrl={normalizeAssetUrl(profile.avatar_url)} sizeClass="w-24 h-24 md:w-28 md:h-28" />
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-50 drop-shadow-sm">{fullName}</h1>
@@ -228,12 +238,12 @@ export default function PublicJobSeekerProfilePage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {profile.resume_url ? (
-                <a
-                  href={profile.resume_url}
-                  target="_blank"
-                  rel="noreferrer"
+	            <div className="flex flex-wrap gap-2">
+	              {profile.resume_url ? (
+	                <a
+	                  href={normalizeAssetUrl(profile.resume_url)}
+	                  target="_blank"
+	                  rel="noreferrer"
                   className="inline-flex items-center gap-2 rounded-xl bg-white text-[#0f5d43] px-4 py-2.5 text-sm font-semibold hover:bg-[#f2fbf6] transition"
                 >
                   <Download className="w-4 h-4" />

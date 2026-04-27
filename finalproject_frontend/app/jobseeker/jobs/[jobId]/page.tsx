@@ -8,6 +8,7 @@ import { ArrowLeft, Upload, Briefcase, MapPin, Clock, Building2, Tag, CheckCircl
 import { authStore } from '@/store/authStore';
 import { jobStore } from '@/store/jobStore';
 import { applicationStore } from '@/store/applicationStore';
+import { API_BASE_URL } from '@/lib/api';
 import { Job } from '@/types/job';
 import { PageShell } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,6 +46,12 @@ export default function JobDetailsAndApplyPage() {
     avatarUrl?: string;
   } | null>(null);
 
+  const normalizeImageUrl = (url?: string) => {
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
+    return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
+  };
+
   useEffect(() => {
     setMounted(true);
     void loadData();
@@ -70,7 +77,11 @@ export default function JobDetailsAndApplyPage() {
 
     if (jobData.recruiter_id) {
       const recruiterProfile = await jobStore.getRecruiterPublicProfile(jobData.recruiter_id);
-      const recruiterAvatar = authStore.getRecruiterProfileMeta(jobData.recruiter_id)?.avatar_url || '';
+      const recruiterAvatar = normalizeImageUrl(
+        recruiterProfile?.avatarUrl ||
+        authStore.getRecruiterProfileMeta(jobData.recruiter_id)?.avatar_url ||
+        ''
+      );
       if (recruiterProfile) {
         setRecruiterCardData({
           recruiterId: recruiterProfile.id,

@@ -154,6 +154,11 @@ router.post('/', authMiddleware, ensureCandidate, upload.single('resume'), async
           }
           resumeText = '';
         }
+        if (!String(resumeText || '').trim()) {
+          return res.status(422).json({
+            error: 'Could not extract text from this PDF resume. Please upload a text-based PDF/TXT resume or ensure OCR service dependencies are installed.'
+          });
+        }
       } else {
         resumeText = extractTextFromTxtBuffer(req.file.buffer);
       }
@@ -215,11 +220,48 @@ router.get('/received', authMiddleware, ensureRecruiter, async function(req, res
     const jobIds = await Job.find({ recruiter: req.user.id }).distinct('_id');
     const applications = await Application.find({ job: { $in: jobIds } })
       .populate('job', 'title company type location status')
-      .populate('candidate', 'firstName lastName email phoneNumber school')
+      .populate('candidate', 'firstName lastName email phoneNumber school avatarUrl')
       .sort({ createdAt: -1 })
       .lean();
 
     res.json({ applications: applications });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/:id/re-evaluate', authMiddleware, ensureRecruiter, async function(req, res, next) {
+  try {
+    const application = await Application.findById(req.params.id)
+      .populate('job', 'title company type location status recruiter description skills');
+
+    if (!application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    if (!application.job || application.job.recruiter.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Recruiter access required' });
+    }
+
+    if (!String(application.resumeText || '').trim()) {
+      return res.status(422).json({ error: 'Resume text unavailable. Ask candidate to re-upload a readable resume.' });
+    }
+
+    const scoreResult = await computeResumeScoreDetailed(application.resumeText, application.job);
+    application.aiScore = scoreResult.score;
+    application.aiExplanation = scoreResult.aiExplanation || '';
+    application.aiMatchLevel = scoreResult.aiMatchLevel || scoreResult.matchLevel || 'unknown';
+    application.aiMatchedSkills = Array.isArray(scoreResult.aiMatchedSkills) ? scoreResult.aiMatchedSkills : [];
+    application.aiMissingSkills = Array.isArray(scoreResult.aiMissingSkills) ? scoreResult.aiMissingSkills : [];
+    application.aiRecommendation = scoreResult.aiRecommendation || '';
+    await application.save();
+
+    const refreshed = await Application.findById(application._id)
+      .populate('job', 'title company type location status')
+      .populate('candidate', 'firstName lastName email phoneNumber school avatarUrl')
+      .lean();
+
+    res.json({ application: refreshed });
   } catch (err) {
     next(err);
   }

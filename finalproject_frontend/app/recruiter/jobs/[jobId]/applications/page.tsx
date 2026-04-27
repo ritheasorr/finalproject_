@@ -23,6 +23,7 @@ import {
   ExternalLink,
   Sparkles,
   ShieldAlert,
+  RefreshCw,
 } from 'lucide-react';
 import { authStore } from '@/store/authStore';
 import { jobStore } from '@/store/jobStore';
@@ -55,6 +56,7 @@ export default function ApplicationReviewPage() {
   const [expandedApp, setExpandedApp] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<{ appId: string; status: 'accepted' | 'rejected' } | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [reEvaluatingAppId, setReEvaluatingAppId] = useState<string | null>(null);
 
   const loadApplications = useCallback(async () => {
     if (jobId) {
@@ -106,6 +108,20 @@ export default function ApplicationReviewPage() {
       toast.error(message);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleReEvaluate = async (appId: string) => {
+    try {
+      setReEvaluatingAppId(appId);
+      await jobStore.reEvaluateApplication(appId);
+      await loadApplications();
+      toast.success('AI score re-evaluated successfully');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to re-evaluate AI score';
+      toast.error(message);
+    } finally {
+      setReEvaluatingAppId(null);
     }
   };
 
@@ -191,18 +207,25 @@ export default function ApplicationReviewPage() {
     });
   }, [applications, filter, scoreBand, sortBy]);
 
+  const normalizeAvatarUrl = useCallback((url?: string) => {
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
+    return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
+  }, []);
+
   const applicantAvatarById = useMemo(() => {
     const map = new Map<string, string>();
     filteredApplications.forEach((app) => {
-      const avatarUrl =
+      const avatarUrl = normalizeAvatarUrl(
         app.candidate_avatar_url ||
-        (app.candidate_id ? authStore.getJobSeekerProfile(app.candidate_id)?.avatar_url || '' : '');
+        (app.candidate_id ? authStore.getJobSeekerProfile(app.candidate_id)?.avatar_url || '' : '')
+      );
       if (avatarUrl) {
         map.set(app.id, avatarUrl);
       }
     });
     return map;
-  }, [filteredApplications]);
+  }, [filteredApplications, normalizeAvatarUrl]);
 
   const stats = {
     total: applications.length,
@@ -352,10 +375,11 @@ export default function ApplicationReviewPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredApplications.map((app) => {
-            const isExpanded = expandedApp === app.id;
-            const candidateAvatar = applicantAvatarById.get(app.id) || '';
-            const matchLevel = getMatchLevel(app);
+	          {filteredApplications.map((app) => {
+	            const isExpanded = expandedApp === app.id;
+	            const candidateAvatar = applicantAvatarById.get(app.id) || '';
+	            const candidateProfileHref = app.candidate_id ? `/jobseekers/${app.candidate_id}` : '';
+	            const matchLevel = getMatchLevel(app);
             const matchedSkills = (app.ai_matched_skills || []).slice(0, 8);
             const missingSkills = (app.ai_missing_skills || []).slice(0, 8);
             const aiSummary = app.ai_explanation || 'Assessment unavailable from AI service. Please verify technical fit manually.';
@@ -364,24 +388,50 @@ export default function ApplicationReviewPage() {
               <div key={app.id} className="surface-card overflow-hidden fade-in-up">
                 <div className="px-6 py-4 cursor-pointer hover:bg-gray-50/50 transition" onClick={() => setExpandedApp(isExpanded ? null : app.id)}>
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-[#043927]/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {candidateAvatar ? (
-                        <img
-                          src={candidateAvatar}
-                          alt={app.candidate_name || 'Candidate'}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-sm font-semibold text-[#043927]">
-                          {app.candidate_name
-                            .split(' ')
-                            .map((n) => n[0])
-                            .join('')
-                            .toUpperCase()
-                            .slice(0, 2)}
-                        </span>
-                      )}
-                    </div>
+	                    {candidateProfileHref ? (
+	                      <Link
+	                        href={candidateProfileHref}
+	                        onClick={(e) => e.stopPropagation()}
+	                        title="View candidate public profile"
+	                        className="w-10 h-10 rounded-full bg-[#043927]/10 flex items-center justify-center flex-shrink-0 overflow-hidden ring-2 ring-transparent hover:ring-[#0f5d43]/25 transition"
+	                      >
+	                        {candidateAvatar ? (
+	                          <img
+	                            src={candidateAvatar}
+	                            alt={app.candidate_name || 'Candidate'}
+	                            className="w-full h-full object-cover"
+	                          />
+	                        ) : (
+	                          <span className="text-sm font-semibold text-[#043927]">
+	                            {app.candidate_name
+	                              .split(' ')
+	                              .map((n) => n[0])
+	                              .join('')
+	                              .toUpperCase()
+	                              .slice(0, 2)}
+	                          </span>
+	                        )}
+	                      </Link>
+	                    ) : (
+	                      <div className="w-10 h-10 rounded-full bg-[#043927]/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+	                        {candidateAvatar ? (
+	                          <img
+	                            src={candidateAvatar}
+	                            alt={app.candidate_name || 'Candidate'}
+	                            className="w-full h-full object-cover"
+	                          />
+	                        ) : (
+	                          <span className="text-sm font-semibold text-[#043927]">
+	                            {app.candidate_name
+	                              .split(' ')
+	                              .map((n) => n[0])
+	                              .join('')
+	                              .toUpperCase()
+	                              .slice(0, 2)}
+	                          </span>
+	                        )}
+	                      </div>
+	                    )}
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -530,6 +580,15 @@ export default function ApplicationReviewPage() {
                           AI Candidate Assessment
                         </h4>
                         <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleReEvaluate(app.id)}
+                            disabled={reEvaluatingAppId === app.id}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#0f5d43]/20 bg-white px-2.5 py-1 text-xs font-semibold text-[#0f5d43] hover:bg-[#edf7f1] disabled:opacity-60 disabled:cursor-not-allowed transition"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${reEvaluatingAppId === app.id ? 'animate-spin' : ''}`} />
+                            {reEvaluatingAppId === app.id ? 'Re-evaluating...' : 'Re-evaluate'}
+                          </button>
                           <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getMatchLevelStyle(matchLevel)}`}>
                             {getMatchLevelLabel(matchLevel)}
                           </span>
