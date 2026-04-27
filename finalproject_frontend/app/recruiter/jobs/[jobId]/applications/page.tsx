@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -13,12 +13,16 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  ArrowUpDown,
+  Filter,
   TrendingUp,
   User,
   Clock,
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  Sparkles,
+  ShieldAlert,
 } from 'lucide-react';
 import { authStore } from '@/store/authStore';
 import { jobStore } from '@/store/jobStore';
@@ -46,6 +50,8 @@ export default function ApplicationReviewPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [job, setJob] = useState<Job | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
+  const [scoreBand, setScoreBand] = useState<'all' | '85-100' | '70-84' | '50-69' | '0-49'>('all');
+  const [sortBy, setSortBy] = useState<'score_desc' | 'score_asc' | 'date_desc' | 'date_asc'>('score_desc');
   const [expandedApp, setExpandedApp] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<{ appId: string; status: 'accepted' | 'rejected' } | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -135,7 +141,55 @@ export default function ApplicationReviewPage() {
     }
   };
 
-  const filteredApplications = applications.filter((app) => (filter === 'all' ? true : app.status === filter));
+  const getMatchLevel = (app: Application): 'excellent' | 'strong' | 'good' | 'partial' | 'weak' => {
+    if (app.ai_match_level && app.ai_match_level !== 'unknown') {
+      return app.ai_match_level as 'excellent' | 'strong' | 'good' | 'partial' | 'weak';
+    }
+    if (app.ai_score >= 90) return 'excellent';
+    if (app.ai_score >= 80) return 'strong';
+    if (app.ai_score >= 65) return 'good';
+    if (app.ai_score >= 45) return 'partial';
+    return 'weak';
+  };
+
+  const getMatchLevelStyle = (level: 'excellent' | 'strong' | 'good' | 'partial' | 'weak') => {
+    if (level === 'excellent') return 'bg-green-50 text-green-700 border-green-200';
+    if (level === 'strong') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    if (level === 'good') return 'bg-blue-50 text-blue-700 border-blue-200';
+    if (level === 'partial') return 'bg-amber-50 text-amber-700 border-amber-200';
+    return 'bg-red-50 text-red-700 border-red-200';
+  };
+
+  const getMatchLevelLabel = (level: 'excellent' | 'strong' | 'good' | 'partial' | 'weak') => {
+    if (level === 'excellent') return 'Excellent Match';
+    if (level === 'strong') return 'Strong Match';
+    if (level === 'good') return 'Good Match';
+    if (level === 'partial') return 'Partial Match';
+    return 'Weak Match';
+  };
+
+  const filteredApplications = useMemo(() => {
+    const inScoreBand = (score: number) => {
+      if (scoreBand === 'all') return true;
+      if (scoreBand === '85-100') return score >= 85;
+      if (scoreBand === '70-84') return score >= 70 && score < 85;
+      if (scoreBand === '50-69') return score >= 50 && score < 70;
+      return score < 50;
+    };
+
+    const filtered = applications.filter((app) => {
+      const matchesStatus = filter === 'all' ? true : app.status === filter;
+      const matchesScore = inScoreBand(app.ai_score || 0);
+      return matchesStatus && matchesScore;
+    });
+
+    return filtered.sort((a, b) => {
+      if (sortBy === 'score_desc') return (b.ai_score || 0) - (a.ai_score || 0);
+      if (sortBy === 'score_asc') return (a.ai_score || 0) - (b.ai_score || 0);
+      if (sortBy === 'date_asc') return new Date(a.applied_at).getTime() - new Date(b.applied_at).getTime();
+      return new Date(b.applied_at).getTime() - new Date(a.applied_at).getTime();
+    });
+  }, [applications, filter, scoreBand, sortBy]);
 
   const stats = {
     total: applications.length,
@@ -170,6 +224,42 @@ export default function ApplicationReviewPage() {
         </Link>
       }
     >
+      <div className="surface-card p-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 text-sm">
+          <div className="rounded-lg border border-[#0f5d43]/15 bg-[#f7fcf9] px-3 py-2.5">
+            <p className="text-xs text-gray-500">Job type</p>
+            <p className="font-semibold text-gray-900 mt-1">{job.job_type}</p>
+          </div>
+          <div className="rounded-lg border border-[#0f5d43]/15 bg-[#f7fcf9] px-3 py-2.5">
+            <p className="text-xs text-gray-500">Salary</p>
+            <p className="font-semibold text-gray-900 mt-1">{job.salary || 'Not specified'}</p>
+          </div>
+          <div className="rounded-lg border border-[#0f5d43]/15 bg-[#f7fcf9] px-3 py-2.5">
+            <p className="text-xs text-gray-500">Applications</p>
+            <p className="font-semibold text-gray-900 mt-1">{stats.total}</p>
+          </div>
+          <div className="rounded-lg border border-[#0f5d43]/15 bg-[#f7fcf9] px-3 py-2.5">
+            <p className="text-xs text-gray-500">Average AI score</p>
+            <p className="font-semibold text-gray-900 mt-1">
+              {applications.length > 0
+                ? `${Math.round(applications.reduce((sum, app) => sum + (app.ai_score || 0), 0) / applications.length)}%`
+                : '0%'}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-3 mt-3">
+          <div className="rounded-lg border border-[#0f5d43]/15 bg-white px-3 py-3">
+            <h3 className="text-xs font-semibold text-[#0f5d43] uppercase tracking-wide">Description</h3>
+            <p className="text-sm text-gray-700 mt-1.5 whitespace-pre-wrap">{job.description || 'No description provided.'}</p>
+          </div>
+          <div className="rounded-lg border border-[#0f5d43]/15 bg-white px-3 py-3">
+            <h3 className="text-xs font-semibold text-[#0f5d43] uppercase tracking-wide">Requirements</h3>
+            <p className="text-sm text-gray-700 mt-1.5 whitespace-pre-wrap">{job.requirements || 'No requirements provided.'}</p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
         {[
           { key: 'all' as const, label: 'All', count: stats.total },
@@ -187,6 +277,50 @@ export default function ApplicationReviewPage() {
             {tab.label} ({tab.count})
           </button>
         ))}
+      </div>
+
+      <div className="surface-card p-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <select
+              value={scoreBand}
+              onChange={(e) => setScoreBand(e.target.value as 'all' | '85-100' | '70-84' | '50-69' | '0-49')}
+              className="w-full rounded-lg border border-[#0f5d43]/15 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
+            >
+              <option value="all">All AI scores</option>
+              <option value="85-100">85 - 100 (Excellent)</option>
+              <option value="70-84">70 - 84 (Good)</option>
+              <option value="50-69">50 - 69 (Fair)</option>
+              <option value="0-49">0 - 49 (Low)</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4 text-gray-500" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'score_desc' | 'score_asc' | 'date_desc' | 'date_asc')}
+              className="w-full rounded-lg border border-[#0f5d43]/15 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
+            >
+              <option value="score_desc">Score: High to Low</option>
+              <option value="score_asc">Score: Low to High</option>
+              <option value="date_desc">Latest Application</option>
+              <option value="date_asc">Oldest Application</option>
+            </select>
+          </div>
+
+          <button
+            onClick={() => {
+              setFilter('all');
+              setScoreBand('all');
+              setSortBy('score_desc');
+            }}
+            className="rounded-lg border border-[#0f5d43]/15 text-[#0f5d43] px-3 py-2 text-sm font-medium hover:bg-[#edf7f1] transition"
+          >
+            Reset Filters
+          </button>
+        </div>
       </div>
 
       {filteredApplications.length === 0 ? (
@@ -207,6 +341,11 @@ export default function ApplicationReviewPage() {
         <div className="space-y-3">
           {filteredApplications.map((app) => {
             const isExpanded = expandedApp === app.id;
+            const matchLevel = getMatchLevel(app);
+            const matchedSkills = (app.ai_matched_skills || []).slice(0, 8);
+            const missingSkills = (app.ai_missing_skills || []).slice(0, 8);
+            const aiSummary = app.ai_explanation || 'Assessment unavailable from AI service. Please verify technical fit manually.';
+            const recommendation = app.ai_recommendation || 'Proceed with a short technical screening to validate core requirements.';
             return (
               <div key={app.id} className="surface-card overflow-hidden fade-in-up">
                 <div className="px-6 py-4 cursor-pointer hover:bg-gray-50/50 transition" onClick={() => setExpandedApp(isExpanded ? null : app.id)}>
@@ -362,6 +501,67 @@ export default function ApplicationReviewPage() {
                       </div>
                     </div>
 
+                    <div className="mt-5 rounded-xl border border-[#0f5d43]/15 bg-white p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4 text-[#0f5d43]" />
+                          AI Candidate Assessment
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getMatchLevelStyle(matchLevel)}`}>
+                            {getMatchLevelLabel(matchLevel)}
+                          </span>
+                          <span className="text-xs font-semibold text-[#0f5d43] bg-[#edf7f1] border border-[#0f5d43]/20 px-2.5 py-1 rounded-full">
+                            Score: {app.ai_score}%
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                        {aiSummary}
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-3 mt-4">
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3">
+                          <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Matched Skills</p>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {matchedSkills.length > 0 ? (
+                              matchedSkills.map((skill) => (
+                                <span key={`${app.id}-matched-${skill}`} className="text-xs px-2 py-1 rounded-full border border-emerald-200 bg-white text-emerald-700">
+                                  {skill}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-emerald-700">No explicit matched skills extracted.</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+                          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Missing / Verify</p>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {missingSkills.length > 0 ? (
+                              missingSkills.map((skill) => (
+                                <span key={`${app.id}-missing-${skill}`} className="text-xs px-2 py-1 rounded-full border border-amber-200 bg-white text-amber-700">
+                                  {skill}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-amber-700">No major gaps flagged.</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 rounded-lg border border-[#0f5d43]/15 bg-[#f7fcf9] px-3 py-2.5 text-sm text-gray-700 flex items-start gap-2">
+                        <ShieldAlert className="w-4 h-4 mt-0.5 text-[#0f5d43]" />
+                        <div>
+                          <p className="text-xs text-gray-500">Recommendation</p>
+                          <p className="font-medium text-[#0f5d43]">{recommendation}</p>
+                        </div>
+                      </div>
+                    </div>
+
                     {app.status === 'pending' && (
                       <div className="flex gap-3 mt-5 pt-5 border-t border-gray-200">
                         <button
@@ -425,4 +625,3 @@ export default function ApplicationReviewPage() {
     </PageShell>
   );
 }
-

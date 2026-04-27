@@ -185,12 +185,12 @@ export default function RecruiterPage() {
     <div className="min-h-screen page-gradient">
       <Navigation variant="recruiter" links={navLinks} />
 
-      <section className="relative overflow-hidden pb-16 pt-10 sm:pt-14">
+      <section className="relative overflow-hidden pb-12 pt-8 sm:pt-10">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-28 -left-20 w-80 h-80 rounded-full bg-[#8ed1ab]/20 blur-3xl" />
           <div className="absolute top-28 -right-16 w-80 h-80 rounded-full bg-[#3b8765]/20 blur-3xl" />
         </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 relative">
           <div className="hero-shell p-6 sm:p-9 md:p-12 text-white text-center relative overflow-hidden">
             <div className="absolute inset-0 landing-grid-pattern opacity-20 pointer-events-none" />
             <div className="relative z-10 max-w-3xl mx-auto">
@@ -277,8 +277,8 @@ export default function RecruiterPage() {
         </div>
       </section>
 
-      <section className="pb-14">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="pb-10">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <div className="surface-card p-5 md:p-6">
             <p className="text-xs uppercase tracking-[0.2em] text-gray-500 text-center mb-4">Trusted by hiring teams</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -296,7 +296,7 @@ export default function RecruiterPage() {
       </section>
 
       <section className="py-12 md:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <div className="grid lg:grid-cols-2 gap-8 items-center">
             <div className="relative surface-card p-3 md:p-4">
               <div className="rounded-2xl overflow-hidden relative">
@@ -353,8 +353,8 @@ export default function RecruiterPage() {
         </div>
       </section>
 
-      <section id="how-it-works" className="py-14 md:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="how-it-works" className="py-10 md:py-12">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <SectionHeading
             eyebrow="How It Works"
             title="From job post to signed hire in four clear steps"
@@ -378,8 +378,8 @@ export default function RecruiterPage() {
         </div>
       </section>
 
-      <section id="features" className="py-14 md:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="features" className="py-10 md:py-12">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <SectionHeading
             eyebrow="Platform Features"
             title="Purpose-built experiences for employers and job seekers"
@@ -422,8 +422,8 @@ export default function RecruiterPage() {
         </div>
       </section>
 
-      <section id="why-us" className="py-14 md:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="why-us" className="py-10 md:py-12">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <SectionHeading
             eyebrow="Why Choose Us"
             title="Modern hiring quality without the complexity"
@@ -446,8 +446,8 @@ export default function RecruiterPage() {
         </div>
       </section>
 
-      <section className="py-14 md:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-10 md:py-12">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <div className="hero-shell p-8 md:p-10 text-white">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {stats.map((stat) => (
@@ -461,8 +461,8 @@ export default function RecruiterPage() {
         </div>
       </section>
 
-      <section id="industries" className="py-14 md:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="industries" className="py-10 md:py-12">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <SectionHeading
             eyebrow="Industries"
             title="Discover hiring demand across key job categories"
@@ -476,8 +476,8 @@ export default function RecruiterPage() {
         </div>
       </section>
 
-      <section className="pt-8 pb-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="pt-6 pb-12">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6">
           <div className="hero-shell text-white p-8 md:p-10 text-center relative overflow-hidden">
             <div className="absolute inset-0 landing-grid-pattern opacity-20 pointer-events-none" />
             <div className="relative z-10">
@@ -507,3 +507,4 @@ export default function RecruiterPage() {
     </div>
   );
 }
+

@@ -13,8 +13,8 @@ export function PageShell({ variant, title, subtitle, actions, children }: PageS
   return (
     <div className="min-h-screen page-gradient">
       <Navigation variant={variant} />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-6">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="stagger-in">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">{title}</h1>
             {subtitle && <p className="text-gray-600 mt-1">{subtitle}</p>}

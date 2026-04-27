@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -22,8 +22,6 @@ import { authStore } from '@/store/authStore';
 import { jobStore, RecruiterPublicProfile } from '@/store/jobStore';
 import { Job } from '@/types/job';
 
-const defaultCover =
-  'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1800&q=80';
 
 export default function RecruiterProfilePage() {
   const router = useRouter();
@@ -38,7 +36,10 @@ export default function RecruiterProfilePage() {
     location: '',
     title: 'Lead Recruiter',
     about: '',
-    coverImage: defaultCover,
+    companySize: '',
+    companyIndustry: '',
+    companyMission: '',
+    companyBenefits: '',
     avatarImage: '',
     websiteUrl: '',
     linkedinUrl: '',
@@ -71,7 +72,10 @@ export default function RecruiterProfilePage() {
           about:
             localMeta?.about ||
             'I help connect high-potential candidates with roles where they can grow and create impact.',
-          coverImage: localMeta?.cover_image_url || defaultCover,
+          companySize: localMeta?.company_size || '',
+          companyIndustry: localMeta?.company_industry || '',
+          companyMission: localMeta?.company_mission || '',
+          companyBenefits: localMeta?.company_benefits || '',
           avatarImage: localMeta?.avatar_url || '',
           websiteUrl: localMeta?.website_url || '',
           linkedinUrl: localMeta?.linkedin_url || '',
@@ -129,7 +133,10 @@ export default function RecruiterProfilePage() {
         location: formData.location,
         title: formData.title,
         about: formData.about,
-        cover_image_url: formData.coverImage,
+        company_size: formData.companySize,
+        company_industry: formData.companyIndustry,
+        company_mission: formData.companyMission,
+        company_benefits: formData.companyBenefits,
         avatar_url: formData.avatarImage,
         website_url: formData.websiteUrl,
         linkedin_url: formData.linkedinUrl,
@@ -173,7 +180,6 @@ export default function RecruiterProfilePage() {
         </div>
 
         <ProfileHeader
-          coverImage={formData.coverImage || defaultCover}
           avatarImage={formData.avatarImage}
           name={formData.fullName}
           roleLabel={formData.title || 'Recruiter'}
@@ -192,7 +198,7 @@ export default function RecruiterProfilePage() {
 
         <div className="grid lg:grid-cols-[1.1fr_1fr] gap-5">
           <div className="space-y-5">
-            <ProfileAbout title="About Recruiter / Company" about={formData.about} />
+            <ProfileAbout title="About Me" about={formData.about} />
             <ProfileJobList
               jobs={jobs}
               title="Available Job Openings"
@@ -205,6 +211,30 @@ export default function RecruiterProfilePage() {
           <div className="surface-card p-5 md:p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Edit Profile Details</h2>
             <form onSubmit={handleSaveProfile} className="space-y-3">
+              <div className="rounded-xl border border-[#0f5d43]/12 bg-[#f7fcf9] p-3.5">
+                <p className="text-xs uppercase tracking-[0.14em] text-gray-500 mb-2">Profile Photo</p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="w-16 h-16 rounded-full border border-[#0f5d43]/15 bg-[#edf7f1] overflow-hidden flex items-center justify-center text-[#0f5d43] text-sm font-semibold shrink-0">
+                    {formData.avatarImage ? (
+                      <img src={formData.avatarImage} alt={formData.fullName || 'Profile photo'} className="w-full h-full object-cover" />
+                    ) : (
+                      (formData.fullName || 'RP')
+                        .split(' ')
+                        .map((part) => part[0])
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase()
+                    )}
+                  </div>
+                  <input
+                    value={formData.avatarImage}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, avatarImage: e.target.value }))}
+                    placeholder="Profile image URL"
+                    className="w-full rounded-lg border border-[#0f5d43]/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
+                  />
+                </div>
+              </div>
+
               <input
                 value={formData.fullName}
                 onChange={(e) => setFormData((prev) => ({ ...prev, fullName: e.target.value }))}
@@ -247,25 +277,42 @@ export default function RecruiterProfilePage() {
                 placeholder="LinkedIn URL"
                 className="w-full rounded-lg border border-[#0f5d43]/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
               />
-              <input
-                value={formData.coverImage}
-                onChange={(e) => setFormData((prev) => ({ ...prev, coverImage: e.target.value }))}
-                placeholder="Cover image URL"
-                className="w-full rounded-lg border border-[#0f5d43]/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
-              />
-              <input
-                value={formData.avatarImage}
-                onChange={(e) => setFormData((prev) => ({ ...prev, avatarImage: e.target.value }))}
-                placeholder="Avatar image URL"
-                className="w-full rounded-lg border border-[#0f5d43]/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
-              />
               <textarea
                 value={formData.about}
                 onChange={(e) => setFormData((prev) => ({ ...prev, about: e.target.value }))}
-                placeholder="About recruiter/company"
+                placeholder="About me"
                 rows={5}
                 className="w-full rounded-lg border border-[#0f5d43]/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20 resize-none"
               />
+              <div className="rounded-xl border border-[#0f5d43]/12 bg-[#f7fcf9] p-3.5 space-y-2.5">
+                <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Company Snapshot</p>
+                <input
+                  value={formData.companySize}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, companySize: e.target.value }))}
+                  placeholder="Company size (e.g. 50-200 employees)"
+                  className="w-full rounded-lg border border-[#0f5d43]/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
+                />
+                <input
+                  value={formData.companyIndustry}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, companyIndustry: e.target.value }))}
+                  placeholder="Industry"
+                  className="w-full rounded-lg border border-[#0f5d43]/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
+                />
+                <textarea
+                  value={formData.companyMission}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, companyMission: e.target.value }))}
+                  placeholder="Company mission"
+                  rows={3}
+                  className="w-full rounded-lg border border-[#0f5d43]/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20 resize-none"
+                />
+                <textarea
+                  value={formData.companyBenefits}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, companyBenefits: e.target.value }))}
+                  placeholder="Benefits (comma separated)"
+                  rows={3}
+                  className="w-full rounded-lg border border-[#0f5d43]/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20 resize-none"
+                />
+              </div>
 
               <button
                 type="submit"
@@ -282,3 +329,4 @@ export default function RecruiterProfilePage() {
     </div>
   );
 }
+

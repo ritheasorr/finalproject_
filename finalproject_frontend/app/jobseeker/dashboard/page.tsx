@@ -1,242 +1,354 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Briefcase, Upload, Building2, Clock, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { BarChart3, BrainCircuit, BriefcaseBusiness, CalendarClock, Sparkles, Target, UserCircle2 } from 'lucide-react';
+
 import { authStore } from '@/store/authStore';
 import { applicationStore } from '@/store/applicationStore';
-import { Application } from '@/types/job';
+import { jobStore } from '@/store/jobStore';
+import { Application, Job } from '@/types/job';
+import { JobSeekerProfile, Resume } from '@/types/user';
 import { PageShell } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
+import { JobseekerHero } from '@/components/jobseeker/JobseekerHero';
+import { StatsGrid, type JobseekerStatItem } from '@/components/jobseeker/StatsGrid';
+import { InsightCard } from '@/components/jobseeker/InsightCard';
+import { ApplicationList } from '@/components/jobseeker/ApplicationList';
+import { RecommendedJobs, type RecommendedJob } from '@/components/jobseeker/RecommendedJobs';
+import { ProfileCompletion } from '@/components/jobseeker/ProfileCompletion';
+import { QuickActions } from '@/components/jobseeker/QuickActions';
+
+type DashboardUser = {
+  id: string;
+  full_name: string;
+  role: 'jobseeker' | 'recruiter';
+};
+
+function tokenizeSkills(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function computeMatchPercent(profileSkills: string[], job: Job): number {
+  const jobSkills = (job.skills || []).map((s) => s.toLowerCase());
+  if (jobSkills.length === 0) return 62;
+  const intersection = jobSkills.filter((skill) => profileSkills.some((s) => s.includes(skill) || skill.includes(s))).length;
+  const coverage = intersection / jobSkills.length;
+  return Math.max(45, Math.min(96, Math.round((coverage * 100) + 20)));
+}
 
 export default function JobSeekerDashboard() {
   const router = useRouter();
-  const [user, setUser] = useState(authStore.getCurrentUser());
-  const [profile, setProfile] = useState(user ? authStore.getJobSeekerProfile(user.id) : null);
-  const [resumes, setResumes] = useState(user ? authStore.getResumesByUserId(user.id) : []);
-  const [applications, setApplications] = useState<Application[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<DashboardUser | null>(null);
+  const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
+  const [resumes, setResumes] = useState<Resume[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [allJobs, setAllJobs] = useState<Job[]>([]);
+  const [vaultResume, setVaultResume] = useState<{
+    resumeUrl: string;
+    resumeFilename: string;
+    resumeExtractedText: string;
+    resumeUpdatedAt: string | null;
+    careerInsights: string[];
+  } | null>(null);
 
   useEffect(() => {
     setMounted(true);
-    const currentUser = authStore.getCurrentUser();
-    if (!currentUser || currentUser.role !== 'jobseeker') {
-      router.push('/login');
-      return;
-    }
-    setUser(currentUser);
-    loadData(currentUser);
+    void (async () => {
+      const currentUser = authStore.getCurrentUser();
+      if (!currentUser || currentUser.role !== 'jobseeker') {
+        router.push('/login');
+        return;
+      }
+      setUser(currentUser);
+      await loadData(currentUser);
+      setLoading(false);
+    })();
   }, [router]);
 
-  const loadData = async (userData: { id: string; full_name: string }) => {
-    if (!userData) return;
-    
-    let profile = authStore.getJobSeekerProfile(userData.id);
-    if (!profile) {
-      profile = authStore.updateJobSeekerProfile(userData.id, {
-        userId: userData.id,
-        full_name: userData.full_name,
+  const loadData = async (currentUser: DashboardUser) => {
+    let currentProfile = await authStore.getJobSeekerProfileRemote(currentUser.id);
+    if (!currentProfile) {
+      currentProfile = authStore.getJobSeekerProfile(currentUser.id);
+    }
+    if (!currentProfile) {
+      currentProfile = authStore.updateJobSeekerProfile(currentUser.id, {
+        userId: currentUser.id,
+        full_name: currentUser.full_name,
         education: '',
         skills: '',
         location: '',
-      });
+      }) || null;
     }
-    setProfile(profile);
-    setResumes(authStore.getResumesByUserId(userData.id));
-    
-    const apps = await applicationStore.getApplicationsByUserId(userData.id);
+
+    setResumes(authStore.getResumesByUserId(currentUser.id));
+    try {
+      const vault = await authStore.getResumeVault();
+      setVaultResume(vault);
+      if (currentProfile) {
+        currentProfile = {
+          ...currentProfile,
+          resume_url: vault.resumeUrl || currentProfile.resume_url,
+          resume_filename: vault.resumeFilename || currentProfile.resume_filename,
+          resume_extracted_text: vault.resumeExtractedText || currentProfile.resume_extracted_text,
+          resume_updated_at: vault.resumeUpdatedAt || currentProfile.resume_updated_at,
+          career_insights: vault.careerInsights.length > 0 ? vault.careerInsights : currentProfile.career_insights,
+        };
+      }
+    } catch {
+      setVaultResume(null);
+    }
+
+    setProfile(currentProfile);
+
+    const [apps, jobs] = await Promise.all([
+      applicationStore.getApplicationsByUserId(currentUser.id),
+      jobStore.getAllJobs(),
+    ]);
     setApplications(apps);
+    setAllJobs(jobs);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffDays = Math.ceil(Math.abs(now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-  };
-
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'accepted': return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-      case 'rejected': return 'bg-red-50 text-red-700 border border-red-200';
-      default: return 'bg-amber-50 text-amber-700 border border-amber-200';
+  const profileChecklist = useMemo(() => {
+    if (!profile) {
+      return {
+        items: [
+          { label: 'Basic Info', done: false },
+          { label: 'Skills', done: false },
+          { label: 'Resume Upload', done: false },
+          { label: 'Portfolio', done: false },
+          { label: 'Experience', done: false },
+        ],
+        completion: 0,
+      };
     }
-  };
+    const hasVaultResume = Boolean(profile.resume_url || vaultResume?.resumeUrl || resumes.length > 0);
+    const items = [
+      { label: 'Basic Info', done: Boolean(profile.full_name && profile.location) },
+      { label: 'Skills', done: Boolean(profile.skills && profile.skills.trim().length > 0) },
+      { label: 'Resume Upload', done: hasVaultResume },
+      { label: 'Portfolio', done: Boolean((profile.linkedin_url && profile.linkedin_url.trim().length > 0) || (profile.github_url && profile.github_url.trim().length > 0) || (profile.website_url && profile.website_url.trim().length > 0)) },
+      { label: 'Experience', done: Boolean((profile.experience && profile.experience.trim().length > 0) || (profile.experience_entries && profile.experience_entries.length > 0)) },
+    ];
+    const done = items.filter((item) => item.done).length;
+    return { items, completion: Math.round((done / items.length) * 100) };
+  }, [profile, resumes, vaultResume]);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'accepted': return <CheckCircle className="w-4 h-4 text-emerald-600" />;
-      case 'rejected': return <XCircle className="w-4 h-4 text-red-600" />;
-      default: return <Clock className="w-4 h-4 text-amber-600" />;
-    }
-  };
+  const derived = useMemo(() => {
+    const total = applications.length;
+    const pending = applications.filter((a) => a.status === 'pending').length;
+    const accepted = applications.filter((a) => a.status === 'accepted').length;
+    const interview = applications.filter((a) => a.application_stage === 'interview').length;
+    const savedJobs = Array.isArray(profile?.saved_jobs) ? profile.saved_jobs.length : 0;
+    const active = pending + interview;
+    return { total, pending, accepted, interview, savedJobs, active };
+  }, [applications, profile]);
 
-  if (!mounted || !user || !profile) {
+  const statsCards = useMemo<JobseekerStatItem[]>(() => {
+    return [
+      {
+        key: 'applications',
+        label: 'Applications Sent',
+        value: String(derived.total),
+        hint: `${derived.active} active in pipeline`,
+        progress: Math.min(100, derived.total * 10),
+        icon: BriefcaseBusiness,
+        iconStyle: 'bg-[#ecf7f1] text-[#0f5d43]',
+        barStyle: 'bg-gradient-to-r from-[#2f8e66] to-[#7bc8a0]',
+      },
+      {
+        key: 'pending',
+        label: 'Pending',
+        value: String(derived.pending),
+        hint: 'Awaiting recruiter response',
+        progress: Math.min(100, derived.pending * 20),
+        icon: CalendarClock,
+        iconStyle: 'bg-amber-50 text-amber-600',
+        barStyle: 'bg-gradient-to-r from-amber-400 to-amber-300',
+      },
+      {
+        key: 'accepted',
+        label: 'Accepted',
+        value: String(derived.accepted),
+        hint: 'Positive outcomes',
+        progress: derived.total > 0 ? Math.round((derived.accepted / derived.total) * 100) : 0,
+        icon: Target,
+        iconStyle: 'bg-emerald-50 text-emerald-600',
+        barStyle: 'bg-gradient-to-r from-emerald-500 to-emerald-300',
+      },
+      {
+        key: 'interviews',
+        label: 'Interviews',
+        value: String(derived.interview),
+        hint: 'Interview stage applications',
+        progress: Math.min(100, derived.interview * 30),
+        icon: UserCircle2,
+        iconStyle: 'bg-violet-50 text-violet-600',
+        barStyle: 'bg-gradient-to-r from-violet-500 to-fuchsia-300',
+      },
+      {
+        key: 'savedJobs',
+        label: 'Saved Jobs',
+        value: String(derived.savedJobs),
+        hint: 'Bookmarked opportunities',
+        progress: Math.min(100, derived.savedJobs * 25),
+        icon: BriefcaseBusiness,
+        iconStyle: 'bg-blue-50 text-blue-600',
+        barStyle: 'bg-gradient-to-r from-blue-500 to-cyan-300',
+      },
+      {
+        key: 'profile',
+        label: 'Profile Completion',
+        value: `${profileChecklist.completion}%`,
+        hint: 'Improve to unlock better opportunities',
+        progress: profileChecklist.completion,
+        icon: BarChart3,
+        iconStyle: 'bg-cyan-50 text-cyan-700',
+        barStyle: 'bg-gradient-to-r from-cyan-500 to-sky-300',
+      },
+    ];
+  }, [derived, profileChecklist.completion]);
+
+  const hasVaultResume = Boolean(profile?.resume_url || vaultResume?.resumeUrl);
+  const dynamicInsights = useMemo(() => {
+    const source = (vaultResume && vaultResume.careerInsights.length > 0)
+      ? vaultResume.careerInsights
+      : (profile?.career_insights || []);
+    return source.filter(Boolean).slice(0, 3);
+  }, [profile, vaultResume]);
+
+  const recommendedJobs = useMemo<RecommendedJob[]>(() => {
+    const profileSkills = tokenizeSkills(profile?.skills || '');
+    const appliedJobIds = new Set(applications.map((app) => app.job_id));
+    return allJobs
+      .filter((job) => (job.status || 'open') === 'open' && !appliedJobIds.has(job.id))
+      .map((job) => {
+        const mode = /remote/i.test(job.location || '') ? 'Remote' : /hybrid/i.test(job.location || '') ? 'Hybrid' : 'Onsite';
+        return { job, match: computeMatchPercent(profileSkills, job), mode };
+      })
+      .sort((a, b) => b.match - a.match)
+      .slice(0, 3);
+  }, [allJobs, applications, profile]);
+
+  if (!mounted || loading || !user || !profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-full max-w-6xl px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
+      <div className="min-h-screen page-gradient">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-6 space-y-4">
+          <Skeleton className="h-56 rounded-2xl" />
+          <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-32 rounded-2xl" />
           </div>
-          <Skeleton className="h-80" />
+          <div className="grid xl:grid-cols-[1fr_320px] gap-4">
+            <Skeleton className="h-96 rounded-2xl" />
+            <Skeleton className="h-96 rounded-2xl" />
+          </div>
         </div>
       </div>
     );
   }
 
-  const stats = {
-    applications: applications.length,
-    pending: applications.filter(a => a.status === 'pending').length,
-    accepted: applications.filter(a => a.status === 'accepted').length,
-    resumes: resumes.length,
-  };
+  const firstName = user.full_name.split(' ')[0] || 'there';
 
   return (
     <PageShell
       variant="jobseeker"
-      title={`Welcome back, ${user.full_name.split(' ')[0]}!`}
-      subtitle="Track your applications and manage your job search"
+      title="Jobseeker Dashboard"
+      subtitle="Your personalized command center for applications, growth, and next opportunities."
     >
+      <div className="space-y-4 pb-20 md:pb-0">
+        <JobseekerHero
+          firstName={firstName}
+          applicationsCount={derived.total}
+          activeCount={derived.active}
+          profileCompletion={profileChecklist.completion}
+        />
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <button onClick={() => router.push('/jobseeker/dashboard')} className="surface-card surface-card-hover surface-card-press p-5 text-left">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-[#043927]/10 flex items-center justify-center">
-                <Briefcase className="w-5 h-5 text-[#043927]" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">{stats.applications}</div>
-                <div className="text-xs text-gray-500">Applications</div>
-              </div>
-            </div>
-          </button>
-          <button onClick={() => router.push('/jobseeker/dashboard')} className="surface-card surface-card-hover surface-card-press p-5 text-left">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">{stats.pending}</div>
-                <div className="text-xs text-gray-500">Pending</div>
-              </div>
-            </div>
-          </button>
-          <button onClick={() => router.push('/jobseeker/dashboard')} className="surface-card surface-card-hover surface-card-press p-5 text-left">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">{stats.accepted}</div>
-                <div className="text-xs text-gray-500">Accepted</div>
-              </div>
-            </div>
-          </button>
-          <button onClick={() => router.push('/jobseeker/profile')} className="surface-card surface-card-hover surface-card-press p-5 text-left">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
-                <Upload className="w-5 h-5 text-violet-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">{stats.resumes}</div>
-                <div className="text-xs text-gray-500">Resumes</div>
-              </div>
-            </div>
-          </button>
-        </div>
+        <StatsGrid stats={statsCards} />
 
-        {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 gap-4 mb-8">
-          <Link
-            href="/jobseeker/jobs"
-            className="bg-[#043927] rounded-xl p-6 hover:bg-[#065a3a] transition group"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-1">Browse Jobs</h3>
-                <p className="text-white/70 text-sm">Find your next opportunity</p>
-              </div>
-              <ArrowRight className="w-5 h-5 text-white/70 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
-
-          <Link
-            href="/jobseeker/profile"
-            className="surface-card surface-card-hover p-6 group"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">Update Profile</h3>
-                <p className="text-gray-500 text-sm">Keep your information current</p>
-              </div>
-              <ArrowRight className="w-5 h-5 text-gray-400 group-hover:translate-x-1 group-hover:text-[#043927] transition-all" />
-            </div>
-          </Link>
-        </div>
-
-        {/* Recent Applications */}
-        <div className="surface-card">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Applications</h2>
-            {applications.length > 0 && (
-              <span className="text-sm text-gray-500">{applications.length} total</span>
-            )}
+        <section className="surface-card rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <BrainCircuit className="w-4 h-4 text-[#0f5d43]" />
+            <h2 className="font-semibold text-gray-900">Personalized Career Insights</h2>
           </div>
-          
-          {applications.length === 0 ? (
-            <div className="p-12 text-center">
-              <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">No applications yet</h3>
-              <p className="text-gray-500 text-sm mb-4">Start applying to jobs to see them here</p>
-              <Link 
-                href="/jobseeker/jobs"
-                className="inline-block bg-[#043927] text-white px-5 py-2.5 rounded-lg hover:bg-[#065a3a] transition text-sm font-medium"
+          {!hasVaultResume ? (
+            <div className="rounded-xl border border-dashed border-[#0f5d43]/25 bg-[#f7fcf9] p-6 text-center">
+              <p className="font-medium text-gray-800">Upload your resume to receive personalized career insights.</p>
+              <p className="text-sm text-gray-500 mt-1">We use your actual resume content to generate practical next steps.</p>
+              <Link
+                href="/jobseeker/profile"
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#0f5d43] text-white px-4 py-2.5 text-sm font-medium hover:bg-[#0b4f39] transition"
               >
-                Browse Jobs
+                Upload Resume
               </Link>
             </div>
+          ) : dynamicInsights.length === 0 ? (
+            <div className="rounded-xl border border-[#0f5d43]/15 bg-[#f7fcf9] p-5 text-sm text-gray-600">
+              Insights are being prepared from your latest resume. Try refreshing in a moment, or re-upload if extraction failed.
+            </div>
           ) : (
-            <div className="divide-y divide-gray-100">
-              {applications.slice(0, 10).map((app) => (
-                <div key={app.id} className="px-6 py-4 hover:bg-gray-50/50 transition cursor-pointer" onClick={() => router.push('/jobseeker/jobs')}>
-                  <div className="flex items-center gap-4">
-                    {/* Company Icon */}
-                    <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                      <Building2 className="w-5 h-5 text-gray-500" />
-                    </div>
-
-                    {/* Job Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-gray-900 truncate">
-                        {app.job_title || 'Job Application'}
-                      </h3>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {app.job_company && <span>{app.job_company} &bull; </span>}
-                        Applied {formatDate(app.applied_at)}
-                      </p>
-                    </div>
-
-                    {/* Status Badge */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusStyle(app.status)}`}>
-                        {getStatusIcon(app.status)}
-                        {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
-                      </span>
-                    </div>
-                  </div>
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {dynamicInsights.map((insight, idx) => (
+                <div key={`${insight}-${idx}`} className="fade-in-up" style={{ animationDelay: `${idx * 50}ms` }}>
+                  <InsightCard title={`Insight ${idx + 1}`} body={insight} icon={Sparkles} />
                 </div>
               ))}
             </div>
           )}
+        </section>
+
+        <div className="grid xl:grid-cols-[1fr_320px] gap-4 items-start">
+          <section className="space-y-4">
+            <div className="surface-card rounded-2xl p-4">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h2 className="font-semibold text-gray-900">Recent Applications</h2>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-[#edf7f1] text-[#0f5d43] border border-[#0f5d43]/20">
+                  {applications.length} total
+                </span>
+              </div>
+              <ApplicationList
+                applications={applications}
+                onViewDetails={(application) => router.push(`/jobseeker/jobs/${application.job_id}`)}
+              />
+            </div>
+
+            <div className="surface-card rounded-2xl p-4">
+              <h2 className="font-semibold text-gray-900 mb-3">Jobs Recommended For You</h2>
+              <RecommendedJobs jobs={recommendedJobs} />
+            </div>
+          </section>
+
+          <aside className="space-y-4 xl:sticky xl:top-20">
+            <ProfileCompletion completion={profileChecklist.completion} items={profileChecklist.items} />
+            <QuickActions />
+          </aside>
         </div>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden border-t border-[#0f5d43]/10 bg-white/95 backdrop-blur px-3 py-2">
+        <div className="grid grid-cols-2 gap-2">
+          <Link
+            href="/jobseeker/jobs"
+            className="inline-flex items-center justify-center rounded-xl bg-[#0f5d43] text-white px-3 py-2.5 text-sm font-medium"
+          >
+            Browse Jobs
+          </Link>
+          <Link
+            href="/jobseeker/profile"
+            className="inline-flex items-center justify-center rounded-xl border border-[#0f5d43]/20 text-[#0f5d43] px-3 py-2.5 text-sm font-medium"
+          >
+            Update Profile
+          </Link>
+        </div>
+      </div>
     </PageShell>
   );
 }

@@ -12,7 +12,16 @@ const ApplicationSchema = new mongoose.Schema({
     url: { type: String, trim: true }
   },
   resumeText: { type: String, default: '' },
-  aiScore: { type: Number, min: 0, max: 100, default: 0 }
+  aiScore: { type: Number, min: 0, max: 100, default: 0 },
+  aiExplanation: { type: String, trim: true, default: '' },
+  aiMatchLevel: {
+    type: String,
+    enum: ['excellent', 'strong', 'good', 'partial', 'weak', 'unknown'],
+    default: 'unknown'
+  },
+  aiMatchedSkills: [{ type: String, trim: true }],
+  aiMissingSkills: [{ type: String, trim: true }],
+  aiRecommendation: { type: String, trim: true, default: '' }
 }, { timestamps: true });
 
 ApplicationSchema.index({ candidate: 1, job: 1 }, { unique: true });

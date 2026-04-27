@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -23,23 +23,18 @@ import {
 } from 'recharts';
 import {
   Activity,
-  BarChart3,
+  ArrowRight,
   BriefcaseBusiness,
   CalendarClock,
   CheckCircle2,
-  CircleDashed,
-  Clock3,
   Eye,
   FileDown,
   Filter,
-  Layers3,
   ListFilter,
   Search,
   Sparkles,
   UserRoundCheck,
-  UserRoundX,
   Users,
-  UserSearch,
   XCircle,
 } from 'lucide-react';
 
@@ -100,15 +95,6 @@ interface DashboardApplicant {
   aiScore: number;
   appliedAt: string;
   resumeUrl: string;
-}
-
-interface KpiCard {
-  label: string;
-  value: number;
-  change: number;
-  icon: ComponentType<{ className?: string }>;
-  sparkline: number[];
-  accent: string;
 }
 
 const pipelineColumns: PipelineStage[] = ['New', 'Screening', 'Shortlisted', 'Interview', 'Hired', 'Rejected'];
@@ -268,8 +254,6 @@ export default function RecruiterDashboardPage() {
       const stage = stageByAppId.get(a.id);
       return stage === 'New' || stage === 'Screening';
     }).length;
-    const rejected = filteredApplicants.filter((a) => stageByAppId.get(a.id) === 'Rejected').length;
-    const activeJobs = selectedJobId === 'all' ? jobs.length : jobs.filter((j) => j.id === selectedJobId).length;
     const interview = filteredApplicants.filter((a) => stageByAppId.get(a.id) === 'Interview').length;
 
     const now = new Date();
@@ -284,24 +268,20 @@ export default function RecruiterDashboardPage() {
     }).length;
 
     const baseChange = percentChange(recent, previous);
-    const kpis: KpiCard[] = [
-      { label: 'Total Applicants', value: total, change: baseChange, icon: Users, sparkline: generateSparkline(total + 4), accent: '#206f50' },
-      { label: 'Shortlisted Candidates', value: shortlisted, change: baseChange - 6, icon: UserRoundCheck, sparkline: generateSparkline(shortlisted + 11), accent: '#2d8a62' },
-      { label: 'Pending Reviews', value: pending, change: baseChange - 12, icon: Clock3, sparkline: generateSparkline(pending + 19), accent: '#5aa37d' },
-      { label: 'Rejected Candidates', value: rejected, change: baseChange + 4, icon: UserRoundX, sparkline: generateSparkline(rejected + 27), accent: '#88bca1' },
-      { label: 'Active Job Posts', value: activeJobs, change: baseChange + 2, icon: BriefcaseBusiness, sparkline: generateSparkline(activeJobs + 34), accent: '#0f5d43' },
-      { label: 'Interview Scheduled', value: interview, change: baseChange + 9, icon: CalendarClock, sparkline: generateSparkline(interview + 43), accent: '#3c9f74' },
-    ];
 
     return {
-      kpis,
       total,
       shortlisted,
       pending,
-      rejected,
       interview,
+      changes: {
+        total: baseChange,
+        shortlisted: baseChange - 6,
+        interview: baseChange + 9,
+        openJobs: baseChange + 2,
+      },
     };
-  }, [filteredApplicants, jobs, selectedJobId, stageByAppId]);
+  }, [filteredApplicants, stageByAppId]);
 
   const scoreDistributionData = useMemo(() => {
     const buckets = { '0-49': 0, '50-69': 0, '70-84': 0, '85-100': 0 };
@@ -410,6 +390,33 @@ export default function RecruiterDashboardPage() {
       .slice(0, 4);
   }, [jobPerformance]);
 
+  const postedJobs = useMemo(() => {
+    const statsByJob = new Map<string, { applications: number; highScore: number; averageScore: number }>();
+
+    jobs.forEach((job) => {
+      const jobApps = applications.filter((app) => app.jobId === job.id);
+      const totalScore = jobApps.reduce((sum, app) => sum + app.aiScore, 0);
+      const averageScore = jobApps.length > 0 ? Math.round(totalScore / jobApps.length) : 0;
+      const highScore = jobApps.filter((app) => app.aiScore >= 85).length;
+
+      statsByJob.set(job.id, {
+        applications: jobApps.length,
+        highScore,
+        averageScore,
+      });
+    });
+
+    return [...jobs]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .map((job) => {
+        const metrics = statsByJob.get(job.id) || { applications: 0, highScore: 0, averageScore: 0 };
+        return {
+          ...job,
+          ...metrics,
+        };
+      });
+  }, [jobs, applications]);
+
   const aiInsights = useMemo(() => {
     const insights: string[] = [];
     const highestApplicantJob = [...applicantsByJobData].sort((a, b) => b.count - a.count)[0];
@@ -475,23 +482,81 @@ export default function RecruiterDashboardPage() {
     return (
       <div className="min-h-screen page-gradient">
         <Navigation variant="recruiter" />
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
-            <Skeleton className="h-[620px]" />
-            <div className="space-y-4">
-              <Skeleton className="h-36" />
-              <div className="grid md:grid-cols-3 gap-4">
-                <Skeleton className="h-32" />
-                <Skeleton className="h-32" />
-                <Skeleton className="h-32" />
-              </div>
-              <Skeleton className="h-96" />
-            </div>
+        <div className="max-w-[1320px] mx-auto px-3 sm:px-4 lg:px-6 py-6 space-y-4">
+          <Skeleton className="h-24 rounded-2xl" />
+          <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-32 rounded-2xl" />
           </div>
+          <div className="grid grid-cols-1 xl:grid-cols-[1.45fr_1fr] gap-4">
+            <Skeleton className="h-[340px] rounded-2xl" />
+            <Skeleton className="h-[340px] rounded-2xl" />
+          </div>
+          <Skeleton className="h-[420px] rounded-2xl" />
         </div>
       </div>
     );
   }
+
+  const openJobs = jobs.filter((job) => (job.status || 'open') === 'open').length;
+  const kpiCards = [
+    {
+      label: 'Total Applicants',
+      value: stats.total,
+      change: stats.changes.total,
+      icon: Users,
+      tone: 'text-blue-700 bg-blue-50 border-blue-100',
+      sparkline: generateSparkline(stats.total + 5),
+      sparkColor: '#2563eb',
+    },
+    {
+      label: 'Strong Matches',
+      value: stats.shortlisted,
+      change: stats.changes.shortlisted,
+      icon: UserRoundCheck,
+      tone: 'text-emerald-700 bg-emerald-50 border-emerald-100',
+      sparkline: generateSparkline(stats.shortlisted + 12),
+      sparkColor: '#047857',
+    },
+    {
+      label: 'Interviews Scheduled',
+      value: stats.interview,
+      change: stats.changes.interview,
+      icon: CalendarClock,
+      tone: 'text-amber-700 bg-amber-50 border-amber-100',
+      sparkline: generateSparkline(stats.interview + 18),
+      sparkColor: '#b45309',
+    },
+    {
+      label: 'Open Jobs',
+      value: openJobs,
+      change: stats.changes.openJobs,
+      icon: BriefcaseBusiness,
+      tone: 'text-slate-700 bg-slate-50 border-slate-200',
+      sparkline: generateSparkline(openJobs + 20),
+      sparkColor: '#334155',
+    },
+  ];
+
+  const primaryAlerts = [
+    {
+      title: `${stats.shortlisted} strong candidates need review`,
+      body: 'Prioritize final shortlist decisions to avoid losing high-quality applicants.',
+      tone: 'border-emerald-200 bg-emerald-50/70',
+    },
+    {
+      title: `${stats.pending} candidates are pending screening`,
+      body: 'Screening queue is growing. Consider bulk review for faster response time.',
+      tone: 'border-amber-200 bg-amber-50/70',
+    },
+    {
+      title: `${openJobs} open roles active`,
+      body: 'Monitor roles with low application flow and refresh job descriptions as needed.',
+      tone: 'border-blue-200 bg-blue-50/70',
+    },
+  ];
 
   return (
     <div className="min-h-screen page-gradient relative overflow-hidden">
@@ -502,168 +567,330 @@ export default function RecruiterDashboardPage() {
         <div className="absolute top-40 right-0 w-80 h-80 rounded-full bg-[#2d7f5d]/20 blur-3xl" />
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
-          <aside className="surface-card p-4 h-fit sticky top-20">
-            <div className="rounded-xl hero-shell p-4 text-white mb-4">
-              <p className="text-xs text-white/80">Recruiter Console</p>
-              <h2 className="text-lg font-semibold mt-1">Analytics Center</h2>
+      <div className="max-w-[1320px] mx-auto px-3 sm:px-4 lg:px-6 py-6 relative space-y-4">
+        <section className="surface-card rounded-2xl p-4 sm:p-5">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-[#073f2f]">Recruiter Dashboard</h1>
+              <p className="text-sm text-gray-600 mt-1">
+                Decision-focused hiring view with clean pipeline monitoring and recruiter AI guidance.
+              </p>
             </div>
-
-            <nav className="space-y-1 text-sm">
-              {[
-                { label: 'Overview', href: '#overview', icon: Layers3 },
-                { label: 'Screening Analytics', href: '#analytics', icon: BarChart3 },
-                { label: 'Pipeline Board', href: '#pipeline', icon: Activity },
-                { label: 'Recent Applicants', href: '#recent', icon: UserSearch },
-                { label: 'Job Performance', href: '#performance', icon: BriefcaseBusiness },
-                { label: 'AI Insights', href: '#insights', icon: Sparkles },
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-gray-700 hover:bg-[#eef6f1] hover:text-[#0b5d43] transition"
-                  >
-                    <Icon className="w-4 h-4" />
-                    {item.label}
-                  </a>
-                );
-              })}
-            </nav>
-
-            <div className="mt-5 pt-4 border-t border-[#0f5d43]/10">
+            <div className="flex flex-wrap items-center gap-2">
               <Link
                 href="/recruiter/jobs/new"
-                className="w-full inline-flex items-center justify-center gap-2 bg-[#0f5d43] text-white px-4 py-2.5 rounded-lg hover:bg-[#0b4f39] transition"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#0f5d43] text-white px-4 py-2.5 text-sm font-medium hover:bg-[#0b4f39] transition"
               >
                 <BriefcaseBusiness className="w-4 h-4" />
                 Post New Job
               </Link>
+              <Link
+                href="/recruiter/saved-resumes"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#0f5d43]/20 text-[#0f5d43] px-4 py-2.5 text-sm font-medium hover:bg-[#edf7f1] transition"
+              >
+                <Eye className="w-4 h-4" />
+                Saved Resumes
+              </Link>
             </div>
-          </aside>
+          </div>
 
-          <main className="space-y-6">
-            <section id="overview" className="space-y-4">
-              <div className="surface-card p-4 md:p-5">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">
+            <div className="relative md:col-span-2">
+              <Search className="w-4 h-4 text-gray-400 absolute top-1/2 -translate-y-1/2 left-3" />
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search candidate, role, or email"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#0f5d43]/15 bg-white focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <ListFilter className="w-4 h-4 text-gray-500" />
+              <select
+                value={selectedJobId}
+                onChange={(e) => setSelectedJobId(e.target.value)}
+                className="w-full rounded-xl border border-[#0f5d43]/15 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
+              >
+                <option value="all">All Job Posts</option>
+                {jobs.map((job) => (
+                  <option key={job.id} value={job.id}>
+                    {job.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedJobId('all');
+                setStatusFilter('all');
+                setDateFilter('all');
+              }}
+              className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-[#0f5d43]/15 hover:bg-[#edf6f1] transition"
+            >
+              <Filter className="w-4 h-4" />
+              Reset
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-gray-500" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+                className="w-full rounded-xl border border-[#0f5d43]/15 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
+              >
+                <option value="all">All Stages</option>
+                {pipelineColumns.map((stage) => (
+                  <option key={stage} value={stage}>
+                    {stage}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-gray-500" />
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+                className="w-full rounded-xl border border-[#0f5d43]/15 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
+              >
+                <option value="all">All time</option>
+                <option value="7d">Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+                <option value="90d">Last 90 days</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {kpiCards.map((kpi) => {
+            const Icon = kpi.icon;
+            return (
+              <div key={kpi.label} className="surface-card rounded-2xl p-4 border border-gray-100 hover:-translate-y-0.5 hover:shadow-xl transition">
+                <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-[#073f2f]">Welcome back, Recruiter</h1>
-                    <p className="text-sm md:text-base text-gray-600 mt-1">
-                      You have {stats.pending} pending screenings, {stats.total} total applicants, and {jobs.length} active job posts.
+                    <p className="text-xs uppercase tracking-wide text-gray-500">{kpi.label}</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-1">{kpi.value}</p>
+                    <p className={`text-xs font-medium mt-1 ${kpi.change >= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                      {kpi.change >= 0 ? '+' : ''}{kpi.change}% vs previous period
                     </p>
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-[#0f5d43] bg-[#ecf7f1] border border-[#0f5d43]/15 px-4 py-3 rounded-xl">
-                    <CircleDashed className="w-4 h-4" />
-                    Live recruiting analytics enabled
+                  <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${kpi.tone}`}>
+                    <Icon className="w-5 h-5" />
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">
-                  <div className="relative md:col-span-3">
-                    <Search className="w-4 h-4 text-gray-400 absolute top-1/2 -translate-y-1/2 left-3" />
-                    <input
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search candidate name, role, or email..."
-                      className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-[#0f5d43]/15 bg-white focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
-                    />
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSearchTerm('');
-                      setSelectedJobId('all');
-                      setStatusFilter('all');
-                      setDateFilter('all');
-                    }}
-                    className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-[#0f5d43]/15 hover:bg-[#edf6f1] transition"
-                  >
-                    <Filter className="w-4 h-4" />
-                    Reset Filters
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
-                  <div className="flex items-center gap-2">
-                    <ListFilter className="w-4 h-4 text-gray-500" />
-                    <select
-                      value={selectedJobId}
-                      onChange={(e) => setSelectedJobId(e.target.value)}
-                      className="w-full rounded-lg border border-[#0f5d43]/15 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
-                    >
-                      <option value="all">All job posts</option>
-                      {jobs.map((job) => (
-                        <option key={job.id} value={job.id}>
-                          {job.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-gray-500" />
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-                      className="w-full rounded-lg border border-[#0f5d43]/15 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
-                    >
-                      <option value="all">All pipeline stages</option>
-                      {pipelineColumns.map((stage) => (
-                        <option key={stage} value={stage}>
-                          {stage}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock3 className="w-4 h-4 text-gray-500" />
-                    <select
-                      value={dateFilter}
-                      onChange={(e) => setDateFilter(e.target.value as DateFilter)}
-                      className="w-full rounded-lg border border-[#0f5d43]/15 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f5d43]/20"
-                    >
-                      <option value="all">All time</option>
-                      <option value="7d">Last 7 days</option>
-                      <option value="30d">Last 30 days</option>
-                      <option value="90d">Last 90 days</option>
-                    </select>
-                  </div>
+                <div className="mt-2">
+                  <MiniSparkline data={kpi.sparkline} color={kpi.sparkColor} />
                 </div>
               </div>
+            );
+          })}
+        </section>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {stats.kpis.map((kpi) => {
-                  const Icon = kpi.icon;
-                  const positive = kpi.change >= 0;
-                  return (
-                    <div
-                      key={kpi.label}
-                      className="surface-card p-4 hover:shadow-xl hover:-translate-y-0.5 transition duration-200"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-xs uppercase tracking-wide text-gray-500">{kpi.label}</p>
-                          <p className="text-2xl font-bold text-gray-900 mt-1">{kpi.value}</p>
-                        </div>
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${kpi.accent}1F` }}>
-                          <Icon className="w-5 h-5" style={{ color: kpi.accent }} />
-                        </div>
-                      </div>
-                      <div className={`text-xs font-medium mt-2 ${positive ? 'text-emerald-700' : 'text-amber-700'}`}>
-                        {positive ? '+' : ''}
-                        {kpi.change}% vs previous period
-                      </div>
-                      <div className="mt-3">
-                        <MiniSparkline data={kpi.sparkline} color={kpi.accent} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+        <section className="grid grid-cols-1 xl:grid-cols-[1.45fr_1fr] gap-4">
+          <div className="surface-card rounded-2xl p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-gray-900">Hiring Funnel / Application Pipeline</h2>
+              <span className="text-xs text-gray-500">{filteredApplicants.length} candidates in view</span>
+            </div>
 
-            <section id="analytics" className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <div className="surface-card p-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {pipelineColumns.map((stage) => {
+                const count = pipelineBoard[stage].length;
+                const tone = stage === 'Hired'
+                  ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                  : stage === 'Rejected'
+                    ? 'text-red-700 bg-red-50 border-red-200'
+                    : stage === 'Interview'
+                      ? 'text-blue-700 bg-blue-50 border-blue-200'
+                      : stage === 'Screening'
+                        ? 'text-amber-700 bg-amber-50 border-amber-200'
+                        : 'text-gray-700 bg-gray-50 border-gray-200';
+                return (
+                  <div key={stage} className={`rounded-xl border p-3 ${tone}`}>
+                    <p className="text-xs uppercase tracking-wide">{stage}</p>
+                    <p className="text-2xl font-bold mt-1">{count}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="h-56 mt-4 rounded-xl border border-gray-100 bg-white p-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <FunnelChart>
+                  <RechartsTooltip />
+                  <Funnel dataKey="value" data={funnelData} isAnimationActive>
+                    {funnelData.map((entry, idx) => (
+                      <Cell key={entry.name} fill={`hsl(149, 35%, ${35 + idx * 7}%)`} />
+                    ))}
+                  </Funnel>
+                </FunnelChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="surface-card rounded-2xl p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-4 h-4 text-[#0f5d43]" />
+              <h2 className="text-base font-semibold text-gray-900"> Alerts</h2>
+            </div>
+
+            <div className="space-y-2">
+              {primaryAlerts.map((alert) => (
+                <div key={alert.title} className={`rounded-xl border p-3 ${alert.tone}`}>
+                  <p className="text-sm font-semibold text-gray-900">{alert.title}</p>
+                  <p className="text-xs text-gray-600 mt-1">{alert.body}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+              {aiInsights.slice(0, 3).map((insight, idx) => (
+                <div key={`${insight}-${idx}`} className="rounded-xl border border-[#0f5d43]/10 bg-[#f7fcf9] px-3 py-2.5 text-sm text-gray-700">
+                  {insight}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="surface-card rounded-2xl p-4 sm:p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-gray-900">Recent Applicants</h2>
+            <span className="text-xs text-gray-500">Who needs action?</span>
+          </div>
+
+          {filteredApplicants.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center">
+              <Search className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+              <p className="font-medium text-gray-700">No applicants match your current filters</p>
+              <p className="text-sm text-gray-500 mt-1">Adjust filters to bring candidates back into view.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-500">
+                    <th className="py-2.5 pr-3">Name</th>
+                    <th className="py-2.5 pr-3">Applied Role</th>
+                    <th className="py-2.5 pr-3">Score</th>
+                    <th className="py-2.5 pr-3">Status</th>
+                    <th className="py-2.5 pr-3">Resume</th>
+                    <th className="py-2.5">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredApplicants.slice(0, 20).map((app) => {
+                    const stage = stageByAppId.get(app.id) || 'New';
+                    const rejecting = rejectingIds.has(app.id);
+                    const statusTone = stage === 'Rejected'
+                      ? 'text-red-700 bg-red-50 border-red-200'
+                      : stage === 'Hired'
+                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                        : stage === 'Interview'
+                          ? 'text-blue-700 bg-blue-50 border-blue-200'
+                          : stage === 'Screening'
+                            ? 'text-amber-700 bg-amber-50 border-amber-200'
+                            : 'text-gray-700 bg-gray-50 border-gray-200';
+                    return (
+                      <tr key={app.id} className="border-b border-gray-100 hover:bg-gray-50/70 transition">
+                        <td className="py-3 pr-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-9 h-9 rounded-full bg-[#e6f4ec] text-[#0f5d43] flex items-center justify-center text-xs font-semibold">
+                              {getInitials(app.name)}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{app.name}</p>
+                              <p className="text-xs text-gray-500">{app.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-3">
+                          <p className="font-medium text-gray-900">{app.jobTitle}</p>
+                          <p className="text-xs text-gray-500">{new Date(app.appliedAt).toLocaleDateString()}</p>
+                        </td>
+                        <td className="py-3 pr-3">
+                          <div className="w-24">
+                            <p className="font-semibold text-gray-900">{app.aiScore}%</p>
+                            <div className="mt-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-[#2d8a62] to-[#58b182]"
+                                style={{ width: `${Math.min(100, Math.max(0, app.aiScore))}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-3">
+                          <span className={`inline-flex px-2.5 py-1 rounded-full border text-xs font-medium ${statusTone}`}>
+                            {stage}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-3">
+                          <a
+                            href={app.resumeUrl || undefined}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition ${
+                              app.resumeUrl
+                                ? 'border-[#0f5d43]/20 text-[#0f5d43] hover:bg-[#edf7f1]'
+                                : 'border-gray-200 text-gray-400 pointer-events-none'
+                            }`}
+                          >
+                            <FileDown className="w-3.5 h-3.5" />
+                            View
+                          </a>
+                        </td>
+                        <td className="py-3">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleToggleShortlist(app.id)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-[#0f5d43]/20 text-[#0f5d43] px-2 py-1.5 text-xs hover:bg-[#edf7f1] transition"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Shortlist
+                            </button>
+                            <button
+                              onClick={() => handleScheduleInterview(app.id)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-blue-200 text-blue-700 px-2 py-1.5 text-xs hover:bg-blue-50 transition"
+                            >
+                              <CalendarClock className="w-3.5 h-3.5" />
+                              Interview
+                            </button>
+                            <button
+                              onClick={() => handleReject(app.id)}
+                              disabled={rejecting}
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-200 text-red-600 px-2 py-1.5 text-xs hover:bg-red-50 transition disabled:opacity-60"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              {rejecting ? 'Rejecting...' : 'Reject'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <details className="surface-card rounded-2xl p-4 sm:p-5 group">
+          <summary className="list-none cursor-pointer flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">Advanced Analytics</h2>
+              <p className="text-xs text-gray-500 mt-1">Historical trends, source distribution, and department-style performance.</p>
+            </div>
+            <span className="text-xs text-[#0f5d43] font-medium group-open:hidden">Expand</span>
+            <span className="text-xs text-[#0f5d43] font-medium hidden group-open:inline">Collapse</span>
+          </summary>
+
+          <div className="mt-4 space-y-4">
+            <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-gray-100 p-4 bg-white">
                 <h3 className="font-semibold text-gray-900 mb-3">Resume screening score distribution</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
@@ -677,7 +904,7 @@ export default function RecruiterDashboardPage() {
                 </div>
               </div>
 
-              <div className="surface-card p-4">
+              <div className="rounded-xl border border-gray-100 p-4 bg-white">
                 <h3 className="font-semibold text-gray-900 mb-3">Applicants by job post</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
@@ -691,26 +918,7 @@ export default function RecruiterDashboardPage() {
                 </div>
               </div>
 
-              <div className="surface-card p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Candidate pipeline funnel</h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <FunnelChart>
-                      <RechartsTooltip />
-                      <Funnel dataKey="value" data={funnelData} isAnimationActive>
-                        {funnelData.map((entry, idx) => (
-                          <Cell
-                            key={entry.name}
-                            fill={`hsl(149, 45%, ${35 + idx * 6}%)`}
-                          />
-                        ))}
-                      </Funnel>
-                    </FunnelChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="surface-card p-4">
+              <div className="rounded-xl border border-gray-100 p-4 bg-white">
                 <h3 className="font-semibold text-gray-900 mb-3">Monthly applications trend</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
@@ -724,23 +932,12 @@ export default function RecruiterDashboardPage() {
                 </div>
               </div>
 
-              <div className="surface-card p-4 xl:col-span-2">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900">Accepted vs rejected ratio</h3>
-                  <span className="text-xs text-gray-500">Based on current filtered applicants</span>
-                </div>
+              <div className="rounded-xl border border-gray-100 p-4 bg-white">
+                <h3 className="font-semibold text-gray-900 mb-3">Accepted vs rejected ratio</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie
-                        data={acceptedRejectedData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={90}
-                        label
-                      >
+                      <Pie data={acceptedRejectedData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label>
                         {acceptedRejectedData.map((entry, idx) => (
                           <Cell key={entry.name} fill={pieColors[idx % pieColors.length]} />
                         ))}
@@ -752,179 +949,38 @@ export default function RecruiterDashboardPage() {
               </div>
             </section>
 
-            <section id="pipeline" className="surface-card p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                <h3 className="font-semibold text-gray-900">Candidate Pipeline Board</h3>
-                <span className="text-xs text-gray-500">Kanban-style view by current stage</span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
-                {pipelineColumns.map((column) => (
-                  <div key={column} className="rounded-xl border border-[#0f5d43]/10 bg-white/80">
-                    <div className="px-3 py-2 border-b border-[#0f5d43]/10 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-[#0f5d43]">{column}</span>
-                      <span className="text-xs text-gray-500">{pipelineBoard[column].length}</span>
-                    </div>
-                    <div className="p-2 space-y-2 max-h-[260px] overflow-auto">
-                      {pipelineBoard[column].length === 0 ? (
-                        <div className="rounded-lg border border-dashed border-gray-200 p-3 text-xs text-gray-400">
-                          No candidates
-                        </div>
-                      ) : (
-                        pipelineBoard[column].map((candidate) => (
-                          <div key={candidate.id} className="rounded-lg border border-[#0f5d43]/12 p-2 bg-white hover:shadow-sm transition">
-                            <div className="text-xs font-semibold text-gray-800 truncate">{candidate.name}</div>
-                            <div className="text-[11px] text-gray-500 truncate">{candidate.jobTitle}</div>
-                            <div className="mt-1 text-[11px] text-[#0f5d43] font-medium">
-                              AI: {candidate.aiScore}%
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section id="recent" className="surface-card p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                <h3 className="font-semibold text-gray-900">Recent Applicants</h3>
-                <span className="text-xs text-gray-500">{filteredApplicants.length} results</span>
-              </div>
-
-              {filteredApplicants.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#0f5d43]/20 p-8 text-center">
-                  <Search className="w-8 h-8 mx-auto text-gray-300 mb-2" />
-                  <p className="font-medium text-gray-700">No applicants match your current filters</p>
-                  <p className="text-sm text-gray-500 mt-1">Adjust search, job post, stage, or date range.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {filteredApplicants.slice(0, 12).map((app) => {
-                    const stage = stageByAppId.get(app.id) || 'New';
-                    const rejecting = rejectingIds.has(app.id);
-                    return (
-                      <div
-                        key={app.id}
-                        className="rounded-xl border border-[#0f5d43]/12 bg-white p-4 hover:shadow-md hover:-translate-y-0.5 transition"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-10 h-10 rounded-full bg-[#e6f4ec] text-[#0f5d43] flex items-center justify-center text-sm font-semibold">
-                              {getInitials(app.name)}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm">{app.name}</p>
-                              <p className="text-xs text-gray-500 truncate max-w-[180px]">{app.jobTitle}</p>
-                            </div>
-                          </div>
-                          <span className="text-xs px-2 py-1 rounded-full bg-[#eaf7f0] text-[#0f5d43] border border-[#0f5d43]/20">
-                            {stage}
-                          </span>
-                        </div>
-
-                        <div className="mt-3 text-xs text-gray-600 space-y-1">
-                          <div>{app.email}</div>
-                          <div>Applied {new Date(app.appliedAt).toLocaleDateString()}</div>
-                        </div>
-
-                        <div className="mt-3 rounded-lg bg-[#f2faf6] border border-[#0f5d43]/10 px-3 py-2">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-gray-600">AI match score</span>
-                            <span className="font-semibold text-[#0f5d43]">{app.aiScore}%</span>
-                          </div>
-                          <div className="mt-1.5 h-1.5 rounded-full bg-[#d6eee2] overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-[#2d8a62] to-[#58b182]"
-                              style={{ width: `${Math.min(100, Math.max(0, app.aiScore))}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <a
-                            href={app.resumeUrl || undefined}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={`inline-flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs border transition ${
-                              app.resumeUrl
-                                ? 'border-[#0f5d43]/20 text-[#0f5d43] hover:bg-[#edf7f1]'
-                                : 'border-gray-200 text-gray-400 pointer-events-none'
-                            }`}
-                          >
-                            <FileDown className="w-3.5 h-3.5" />
-                            View CV
-                          </a>
-                          <button
-                            onClick={() => handleToggleShortlist(app.id)}
-                            className="inline-flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs border border-[#0f5d43]/20 text-[#0f5d43] hover:bg-[#edf7f1] transition"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Shortlist
-                          </button>
-                          <button
-                            onClick={() => handleReject(app.id)}
-                            disabled={rejecting}
-                            className="inline-flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs border border-red-200 text-red-600 hover:bg-red-50 transition disabled:opacity-60"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            {rejecting ? 'Rejecting...' : 'Reject'}
-                          </button>
-                          <button
-                            onClick={() => handleScheduleInterview(app.id)}
-                            className="inline-flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs border border-[#0f5d43]/20 text-[#0f5d43] hover:bg-[#edf7f1] transition"
-                          >
-                            <CalendarClock className="w-3.5 h-3.5" />
-                            Schedule
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
-            <section id="performance" className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <div className="surface-card p-4">
-                <h3 className="font-semibold text-gray-900 mb-4">Top job post performance</h3>
-                <div className="space-y-3">
+            <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-gray-100 p-4 bg-white">
+                <h3 className="font-semibold text-gray-900 mb-3">Top job post performance</h3>
+                <div className="space-y-2">
                   {topPerformingJobs.length === 0 ? (
-                    <div className="text-sm text-gray-500">No job performance data yet.</div>
+                    <div className="text-sm text-gray-500">No performance data yet.</div>
                   ) : (
                     topPerformingJobs.map((job) => (
-                      <div key={job.id} className="rounded-xl border border-[#0f5d43]/12 p-3 bg-white">
+                      <div key={job.id} className="rounded-lg border border-gray-100 p-3 hover:shadow-sm transition">
                         <div className="flex items-center justify-between gap-2">
                           <p className="font-medium text-sm text-gray-900 truncate">{job.title}</p>
                           <span className="text-xs text-[#0f5d43] font-semibold">{job.conversion}% conversion</span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 mt-2 text-xs text-gray-600">
-                          <div className="rounded-lg bg-[#f3faf6] px-2 py-1.5 text-center">
-                            <p className="text-gray-500">Views</p>
-                            <p className="font-semibold text-gray-900">{job.views}</p>
-                          </div>
-                          <div className="rounded-lg bg-[#f3faf6] px-2 py-1.5 text-center">
-                            <p className="text-gray-500">Applications</p>
-                            <p className="font-semibold text-gray-900">{job.applications}</p>
-                          </div>
-                          <div className="rounded-lg bg-[#f3faf6] px-2 py-1.5 text-center">
-                            <p className="text-gray-500">Conversion</p>
-                            <p className="font-semibold text-gray-900">{job.conversion}%</p>
-                          </div>
+                          <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center"><p>Views</p><p className="font-semibold text-gray-900">{job.views}</p></div>
+                          <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center"><p>Apps</p><p className="font-semibold text-gray-900">{job.applications}</p></div>
+                          <div className="rounded-md bg-gray-50 px-2 py-1.5 text-center"><p>Conv.</p><p className="font-semibold text-gray-900">{job.conversion}%</p></div>
                         </div>
-                        <div className="mt-2">
-                          <MiniSparkline data={job.trend} color="#2d8a62" />
-                        </div>
+                        <div className="mt-2"><MiniSparkline data={job.trend} color="#2d8a62" /></div>
+                        <Link href={`/recruiter/jobs/${job.id}/applications`} className="mt-1 inline-flex items-center gap-1 text-xs text-[#0f5d43] hover:underline">
+                          View job details
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
                       </div>
                     ))
                   )}
                 </div>
               </div>
 
-              <div className="surface-card p-4">
+              <div className="rounded-xl border border-gray-100 p-4 bg-white">
                 <h3 className="font-semibold text-gray-900 mb-3">Applications vs views trend</h3>
-                <div className="h-[360px]">
+                <div className="h-[340px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={topPerformingJobs}>
                       <XAxis dataKey="title" hide />
@@ -939,35 +995,45 @@ export default function RecruiterDashboardPage() {
               </div>
             </section>
 
-            <section id="insights" className="surface-card p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="w-4 h-4 text-[#0f5d43]" />
-                <h3 className="font-semibold text-gray-900">AI Insights Panel</h3>
-              </div>
-              <div className="grid md:grid-cols-2 gap-3">
-                {aiInsights.map((insight, idx) => (
-                  <div
-                    key={`${insight}-${idx}`}
-                    className="rounded-xl border border-[#0f5d43]/12 bg-gradient-to-r from-[#eef8f3] to-[#f8fcfa] px-4 py-3 text-sm text-gray-700"
-                  >
-                    {insight}
-                  </div>
-                ))}
+            <section className="rounded-xl border border-gray-100 p-4 bg-white">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <h3 className="font-semibold text-gray-900">Posted Jobs</h3>
+                <span className="text-xs text-gray-500">{postedJobs.length} job posts</span>
               </div>
 
-              <div className="mt-4 rounded-lg border border-[#0f5d43]/15 bg-[#f7fcf9] p-3 text-sm text-gray-600 flex items-center justify-between">
-                <span>Need deeper review of applications and folders?</span>
-                <Link
-                  href="/recruiter/saved-resumes"
-                  className="inline-flex items-center gap-1 text-[#0f5d43] font-medium hover:underline"
-                >
-                  <Eye className="w-4 h-4" />
-                  Open Saved Resumes
-                </Link>
-              </div>
+              {postedJobs.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-200 p-6 text-center">
+                  <p className="font-medium text-gray-700">No jobs posted yet</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {postedJobs.map((job) => (
+                    <div key={job.id} className="rounded-xl border border-gray-100 bg-white p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-gray-900 text-sm">{job.title}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{job.company} {job.location ? `- ${job.location}` : ''}</p>
+                        </div>
+                        <span className={`text-[11px] px-2 py-1 rounded-full border ${job.status === 'closed' ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                          {(job.status || 'open').toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                        <div className="rounded-lg bg-gray-50 px-2 py-2 text-center"><p className="text-gray-500">Applicants</p><p className="font-semibold text-gray-900">{job.applications}</p></div>
+                        <div className="rounded-lg bg-gray-50 px-2 py-2 text-center"><p className="text-gray-500">85+ Score</p><p className="font-semibold text-gray-900">{job.highScore}</p></div>
+                        <div className="rounded-lg bg-gray-50 px-2 py-2 text-center"><p className="text-gray-500">Avg Score</p><p className="font-semibold text-gray-900">{job.averageScore}%</p></div>
+                      </div>
+                      <Link href={`/recruiter/jobs/${job.id}/applications`} className="mt-3 inline-flex items-center justify-center w-full gap-1 rounded-lg border border-[#0f5d43]/20 text-[#0f5d43] px-3 py-2 text-sm font-medium hover:bg-[#edf7f1] transition">
+                        Open Job Page
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
-          </main>
-        </div>
+          </div>
+        </details>
       </div>
     </div>
   );

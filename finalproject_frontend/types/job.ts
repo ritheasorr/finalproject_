@@ -30,6 +30,12 @@ export interface Application {
   resume_url: string;
   cover_letter: string;
   ai_score: number;
+  ai_explanation?: string;
+  ai_match_level?: 'excellent' | 'strong' | 'good' | 'partial' | 'weak' | 'unknown';
+  ai_matched_skills?: string[];
+  ai_missing_skills?: string[];
+  ai_recommendation?: string;
+  application_stage?: 'submitted' | 'reviewing' | 'interview' | 'rejected' | 'hired';
   status: 'pending' | 'accepted' | 'rejected';
   applied_at: string;
 }

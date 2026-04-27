@@ -1,4 +1,12 @@
 export type UserRole = 'jobseeker' | 'recruiter';
+export type JobSeekerAvailabilityStatus =
+  | 'Available'
+  | 'Open To Hire'
+  | 'Interested'
+  | 'Freelance'
+  | 'Part Time Only'
+  | 'Remote Only'
+  | 'Not Available';
 
 export interface User {
   id: string;
@@ -10,6 +18,8 @@ export interface User {
 
 export interface JobSeekerProfile {
   userId: string;
+  email?: string;
+  phone_number?: string;
   full_name: string;
   education: string;
   skills: string;
@@ -20,6 +30,30 @@ export interface JobSeekerProfile {
   cover_image_url?: string;
   avatar_url?: string;
   linkedin_url?: string;
+  github_url?: string;
+  website_url?: string;
+  availability_status?: JobSeekerAvailabilityStatus;
+  languages?: Array<{
+    name: string;
+    fluency: string;
+  }>;
+  experience_entries?: Array<{
+    role: string;
+    company: string;
+    period: string;
+    description: string;
+  }>;
+  education_entries?: Array<{
+    school: string;
+    degree: string;
+    year: string;
+  }>;
+  resume_url?: string;
+  resume_filename?: string;
+  resume_extracted_text?: string;
+  resume_updated_at?: string;
+  career_insights?: string[];
+  saved_jobs?: string[];
 }
 
 export interface RecruiterProfileMeta {
@@ -32,6 +66,10 @@ export interface RecruiterProfileMeta {
   avatar_url?: string;
   website_url?: string;
   linkedin_url?: string;
+  company_size?: string;
+  company_industry?: string;
+  company_mission?: string;
+  company_benefits?: string;
 }
 
 export interface Resume {

@@ -58,6 +58,11 @@ interface BackendApplication {
     url?: string;
   };
   aiScore?: number;
+  aiExplanation?: string;
+  aiMatchLevel?: 'excellent' | 'strong' | 'good' | 'partial' | 'weak' | 'unknown';
+  aiMatchedSkills?: string[];
+  aiMissingSkills?: string[];
+  aiRecommendation?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -197,6 +202,12 @@ function mapBackendApplication(backendApp: BackendApplication): Application {
     resume_url: backendApp.resume?.url || '',
     cover_letter: backendApp.coverLetter || '',
     ai_score: typeof backendApp.aiScore === 'number' ? backendApp.aiScore : 0,
+    ai_explanation: backendApp.aiExplanation || '',
+    ai_match_level: backendApp.aiMatchLevel || 'unknown',
+    ai_matched_skills: Array.isArray(backendApp.aiMatchedSkills) ? backendApp.aiMatchedSkills : [],
+    ai_missing_skills: Array.isArray(backendApp.aiMissingSkills) ? backendApp.aiMissingSkills : [],
+    ai_recommendation: backendApp.aiRecommendation || '',
+    application_stage: backendApp.status,
     status: backendApp.status === 'hired' ? 'accepted' : backendApp.status === 'rejected' ? 'rejected' : 'pending',
     applied_at: backendApp.createdAt,
   };

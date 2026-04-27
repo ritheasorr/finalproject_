@@ -29,7 +29,45 @@ interface UserResponse {
     role: 'candidate' | 'recruiter';
     phoneNumber?: string;
     school?: string;
+    location?: string;
+    professionalTitle?: string;
+    bio?: string;
+    skills?: string[];
+    experienceEntries?: Array<{
+      role: string;
+      company: string;
+      period: string;
+      description: string;
+    }>;
+    educationEntries?: Array<{
+      school: string;
+      degree: string;
+      year: string;
+    }>;
+    portfolio?: {
+      github?: string;
+      linkedin?: string;
+      website?: string;
+    };
+    avatarUrl?: string;
+    coverImageUrl?: string;
+    resumeUrl?: string;
+    resumeFilename?: string;
+    resumeExtractedText?: string;
+    resumeUpdatedAt?: string;
+    careerInsights?: string[];
+    savedJobs?: string[];
   };
+}
+
+interface ResumeVaultResponse {
+  resume: {
+    url: string;
+    filename: string;
+    extractedText: string;
+    updatedAt: string | null;
+  };
+  careerInsights: string[];
 }
 
 // Map backend user to frontend User type
@@ -40,6 +78,36 @@ function mapBackendUser(backendUser: AuthResponse['user']): User {
     full_name: `${backendUser.firstName} ${backendUser.lastName}`,
     role: backendUser.role === 'candidate' ? 'jobseeker' : 'recruiter',
     created_at: new Date().toISOString(),
+  };
+}
+
+function mapUserResponseToJobSeekerProfile(user: UserResponse['user']): JobSeekerProfile {
+  return {
+    userId: user.id,
+    email: user.email,
+    phone_number: user.phoneNumber || '',
+    full_name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+    education: user.school || '',
+    skills: Array.isArray(user.skills) ? user.skills.join(', ') : '',
+    location: user.location || '',
+    professional_title: user.professionalTitle || '',
+    bio: user.bio || '',
+    experience: '',
+    avatar_url: user.avatarUrl || '',
+    cover_image_url: user.coverImageUrl || '',
+    linkedin_url: (user.portfolio && user.portfolio.linkedin) || '',
+    github_url: (user.portfolio && user.portfolio.github) || '',
+    website_url: (user.portfolio && user.portfolio.website) || '',
+    experience_entries: Array.isArray(user.experienceEntries) ? user.experienceEntries : [],
+    education_entries: Array.isArray(user.educationEntries) ? user.educationEntries : [],
+    resume_url: user.resumeUrl || '',
+    resume_filename: user.resumeFilename || '',
+    resume_extracted_text: user.resumeExtractedText || '',
+    resume_updated_at: user.resumeUpdatedAt || '',
+    career_insights: Array.isArray(user.careerInsights) ? user.careerInsights : [],
+    saved_jobs: Array.isArray(user.savedJobs) ? user.savedJobs : [],
+    availability_status: 'Open To Hire',
+    languages: [],
   };
 }
 
@@ -132,6 +200,34 @@ export const authStore = {
     lastName?: string;
     phoneNumber?: string;
     school?: string;
+    location?: string;
+    professionalTitle?: string;
+    bio?: string;
+    skills?: string[];
+    experienceEntries?: Array<{
+      role: string;
+      company: string;
+      period: string;
+      description: string;
+    }>;
+    educationEntries?: Array<{
+      school: string;
+      degree: string;
+      year: string;
+    }>;
+    portfolio?: {
+      github?: string;
+      linkedin?: string;
+      website?: string;
+    };
+    avatarUrl?: string;
+    coverImageUrl?: string;
+    resumeUrl?: string;
+    resumeFilename?: string;
+    resumeExtractedText?: string;
+    resumeUpdatedAt?: string;
+    careerInsights?: string[];
+    savedJobs?: string[];
   }): Promise<User | null> {
     try {
       const response = await apiClient.patch<UserResponse>('/users/me', updates);
@@ -147,6 +243,118 @@ export const authStore = {
     } catch (error) {
       throw error;
     }
+  },
+
+  async getJobSeekerProfileRemote(userId: string): Promise<JobSeekerProfile | undefined> {
+    try {
+      const response = await apiClient.get<UserResponse>('/users/me');
+      const mapped = mapUserResponseToJobSeekerProfile(response.user);
+      const local = this.getJobSeekerProfile(userId);
+      const merged = {
+        ...mapped,
+        availability_status: local?.availability_status || mapped.availability_status || 'Open To Hire',
+        languages: local?.languages || [],
+      };
+      this.updateJobSeekerProfile(userId, merged);
+      return merged;
+    } catch (error) {
+      console.error('Failed to fetch remote jobseeker profile:', error);
+      return undefined;
+    }
+  },
+
+  async saveJobSeekerProfile(userId: string, profile: Partial<JobSeekerProfile>): Promise<JobSeekerProfile | undefined> {
+    try {
+      const payload = {
+        firstName: (profile.full_name || '').trim().split(' ')[0] || undefined,
+        lastName: (profile.full_name || '').trim().split(' ').slice(1).join(' ') || undefined,
+        school: profile.education,
+        phoneNumber: profile.phone_number,
+        location: profile.location,
+        professionalTitle: profile.professional_title,
+        bio: profile.bio,
+        skills: typeof profile.skills === 'string'
+          ? profile.skills.split(',').map((item) => item.trim()).filter(Boolean)
+          : undefined,
+        experienceEntries: profile.experience_entries,
+        educationEntries: profile.education_entries,
+        portfolio: {
+          github: profile.github_url || '',
+          linkedin: profile.linkedin_url || '',
+          website: profile.website_url || '',
+        },
+        avatarUrl: profile.avatar_url,
+        coverImageUrl: profile.cover_image_url,
+        savedJobs: profile.saved_jobs,
+      };
+
+      const response = await apiClient.patch<UserResponse>('/users/me', payload);
+      const mapped = mapUserResponseToJobSeekerProfile(response.user);
+      const local = this.getJobSeekerProfile(userId);
+      const merged = {
+        ...mapped,
+        availability_status: profile.availability_status || local?.availability_status || mapped.availability_status || 'Open To Hire',
+        languages: profile.languages || local?.languages || [],
+      };
+      this.updateJobSeekerProfile(userId, merged);
+      return merged;
+    } catch (error) {
+      console.error('Failed to save remote jobseeker profile:', error);
+      return undefined;
+    }
+  },
+
+  async uploadResumeToVault(file: File): Promise<{
+    resumeUrl: string;
+    resumeFilename: string;
+    resumeExtractedText: string;
+    resumeUpdatedAt: string | null;
+    careerInsights: string[];
+  }> {
+    const formData = new FormData();
+    formData.append('resume', file);
+    const response = await apiClient.postFormData<ResumeVaultResponse>('/resumes', formData);
+    return {
+      resumeUrl: response.resume.url || '',
+      resumeFilename: response.resume.filename || '',
+      resumeExtractedText: response.resume.extractedText || '',
+      resumeUpdatedAt: response.resume.updatedAt || null,
+      careerInsights: Array.isArray(response.careerInsights) ? response.careerInsights : []
+    };
+  },
+
+  async getResumeVault(): Promise<{
+    resumeUrl: string;
+    resumeFilename: string;
+    resumeExtractedText: string;
+    resumeUpdatedAt: string | null;
+    careerInsights: string[];
+  }> {
+    const response = await apiClient.get<ResumeVaultResponse>('/resumes/mine/current');
+    return {
+      resumeUrl: response.resume.url || '',
+      resumeFilename: response.resume.filename || '',
+      resumeExtractedText: response.resume.extractedText || '',
+      resumeUpdatedAt: response.resume.updatedAt || null,
+      careerInsights: Array.isArray(response.careerInsights) ? response.careerInsights : []
+    };
+  },
+
+  async deleteResumeVault(): Promise<boolean> {
+    try {
+      await apiClient.delete<{ success: boolean }>('/resumes/mine/current');
+      return true;
+    } catch (error) {
+      console.error('Failed to delete resume vault:', error);
+      return false;
+    }
+  },
+
+  async uploadProfileAvatar(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const response = await apiClient.postFormData<{ avatarUrl: string }>('/users/me/avatar', formData);
+    return response.avatarUrl || '';
   },
 
   // Note: Profile and Resume management will need backend endpoints
@@ -171,6 +379,8 @@ export const authStore = {
       // Create new profile
       const newProfile: JobSeekerProfile = {
         userId,
+        email: updates.email || '',
+        phone_number: updates.phone_number || '',
         full_name: updates.full_name || '',
         education: updates.education || '',
         skills: updates.skills || '',
@@ -181,6 +391,10 @@ export const authStore = {
         cover_image_url: updates.cover_image_url || '',
         avatar_url: updates.avatar_url || '',
         linkedin_url: updates.linkedin_url || '',
+        github_url: updates.github_url || '',
+        website_url: updates.website_url || '',
+        availability_status: updates.availability_status || 'Open To Hire',
+        languages: updates.languages || [],
       };
       profiles.push(newProfile);
       localStorage.setItem('careerlaunch_jobseeker_profiles', JSON.stringify(profiles));
@@ -219,6 +433,10 @@ export const authStore = {
         avatar_url: updates.avatar_url || '',
         website_url: updates.website_url || '',
         linkedin_url: updates.linkedin_url || '',
+        company_size: updates.company_size || '',
+        company_industry: updates.company_industry || '',
+        company_mission: updates.company_mission || '',
+        company_benefits: updates.company_benefits || '',
       };
       profiles.push(newProfile);
       localStorage.setItem('careerlaunch_recruiter_profiles', JSON.stringify(profiles));

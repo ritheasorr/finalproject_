@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -24,6 +24,14 @@ export default function JobDetailsAndApplyPage() {
   const [mounted, setMounted] = useState(false);
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeSource, setResumeSource] = useState<'vault' | 'upload'>('vault');
+  const [vaultResume, setVaultResume] = useState<{
+    resumeUrl: string;
+    resumeFilename: string;
+    resumeExtractedText: string;
+    resumeUpdatedAt: string | null;
+    careerInsights: string[];
+  } | null>(null);
   const [coverLetter, setCoverLetter] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,16 +90,33 @@ export default function JobDetailsAndApplyPage() {
     if (applied) {
       setError('You have already applied to this job');
     }
+
+    try {
+      const vault = await authStore.getResumeVault();
+      const hasVault = Boolean(vault.resumeUrl && vault.resumeFilename);
+      setVaultResume(vault);
+      setResumeSource(hasVault ? 'vault' : 'upload');
+    } catch {
+      setVaultResume(null);
+      setResumeSource('upload');
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
 
     if (!user || !job) return;
 
-    if (!resumeFile) {
+    if (resumeSource === 'upload' && !resumeFile) {
       const message = 'Please upload your resume (PDF or TXT)';
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (resumeSource === 'vault' && (!vaultResume || !vaultResume.resumeUrl)) {
+      const message = 'No resume found in profile vault. Please upload one first.';
       setError(message);
       toast.error(message);
       return;
@@ -115,7 +140,12 @@ export default function JobDetailsAndApplyPage() {
     setIsSubmitting(true);
 
     try {
-      await applicationStore.createApplication(jobId, coverLetter, resumeFile);
+      await applicationStore.createApplication(
+        jobId,
+        coverLetter,
+        resumeSource === 'upload' ? (resumeFile || undefined) : undefined,
+        { resumeSource: resumeSource }
+      );
       toast.success('Application submitted successfully');
       router.push('/jobseeker/dashboard');
     } catch (err: unknown) {
@@ -266,17 +296,58 @@ export default function JobDetailsAndApplyPage() {
               {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-5 text-sm">{error}</div>}
 
               <div className="mb-5">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Upload Resume (PDF or TXT)</label>
-                <input
-                  type="file"
-                  accept=".pdf,.txt,application/pdf,text/plain"
-                  onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#043927]/20 focus:border-[#043927] bg-white"
-                  required
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Choose Resume Source</label>
+                <div className="space-y-2">
+                  <label className="flex items-start gap-2 rounded-lg border border-gray-200 p-3 cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="resumeSource"
+                      value="vault"
+                      checked={resumeSource === 'vault'}
+                      onChange={() => setResumeSource('vault')}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Use Resume from Profile Vault</p>
+                      {vaultResume && vaultResume.resumeFilename ? (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Current: {vaultResume.resumeFilename}
+                          {vaultResume.resumeUpdatedAt ? ` (updated ${new Date(vaultResume.resumeUpdatedAt).toLocaleDateString()})` : ''}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber-600 mt-1">No vault resume found. Upload one in Profile or choose new upload.</p>
+                      )}
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2 rounded-lg border border-gray-200 p-3 cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name="resumeSource"
+                      value="upload"
+                      checked={resumeSource === 'upload'}
+                      onChange={() => setResumeSource('upload')}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">Upload New Resume for This Application</p>
+                      <p className="text-xs text-gray-500 mt-1">This file will be used only for this job application.</p>
+                      {resumeSource === 'upload' && (
+                        <div className="mt-2">
+                          <input
+                            type="file"
+                            accept=".pdf,.txt,application/pdf,text/plain"
+                            onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#043927]/20 focus:border-[#043927] bg-white"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                </div>
                 <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1.5">
                   <Upload className="w-3.5 h-3.5" />
-                  PDF or TXT file. Your resume will be submitted for this job.
+                  PDF or TXT file supported when uploading a new resume.
                 </p>
               </div>
 
