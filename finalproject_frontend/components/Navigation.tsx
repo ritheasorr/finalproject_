@@ -76,7 +76,7 @@ export default function Navigation({ variant = 'default', links = [] }: Navigati
 
   return (
     <nav className="sticky top-0 z-40 border-b border-white/15 bg-gradient-to-r from-[#043927] via-[#0f5d43] to-[#1b7a57] backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-3 sm:px-4 lg:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Left: Logo */}
           <Link href="/" className="text-2xl font-bold tracking-tight text-white flex-shrink-0">
